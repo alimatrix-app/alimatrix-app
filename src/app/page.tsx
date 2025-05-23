@@ -493,12 +493,6 @@ export default function StartPage() {
               >
                 Regulamin
               </Link>
-              <Link
-                href="/kontakt"
-                className="text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                Kontakt
-              </Link>
             </div>
           </div>
           <div className="border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center">
