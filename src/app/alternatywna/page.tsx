@@ -119,7 +119,7 @@ export default function Alternatywna() {
 
           <div className="space-y-6">
             <h1 className="text-2xl font-bold">
-              Gdzie jesteśmy i jak możemy Ci pomóc
+              Raport dla Twojej sytuacji będzie dostępny wkrótce
             </h1>
 
             {isSuccess ? (

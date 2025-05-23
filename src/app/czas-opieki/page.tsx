@@ -792,8 +792,7 @@ export default function CzasOpieki() {
             {/* Podsumowanie podziału czasu opieki */}
             <div className="mt-8 p-4 rounded-lg bg-blue-50">
               <h3 className="text-lg font-semibold mb-3">
-                📊 Podsumowanie podziału standardowego czasu opieki nad
-                dzieckiem
+                Podsumowanie podziału standardowego czasu opieki nad dzieckiem
               </h3>
               <p className="text-sm mb-4">
                 Poniżej przedstawiamy, jak – na podstawie wypełnionych danych –

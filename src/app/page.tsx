@@ -129,7 +129,7 @@ export default function StartPage() {
 
             <motion.h1
               variants={fadeIn}
-              className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-500 leading-tight"
+              className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-950 to-sky-750 leading-tight"
             >
               Alimenty bez tajemnic
             </motion.h1>

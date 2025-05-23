@@ -238,7 +238,7 @@ export default function InformacjeOTobie() {
 
                   <div>
                     <Label className="block mb-2">
-                      Stan cywilny
+                      Stan cywilny / sytuacja prawna związku rodziców dziecka
                       <InfoTooltip
                         content={
                           <div className="text-sm">
@@ -269,6 +269,9 @@ export default function InformacjeOTobie() {
                         </SelectItem>
                         <SelectItem value="rozwod_bez_winy">
                           Rozwód bez orzeczenia o winie
+                        </SelectItem>
+                        <SelectItem value="nigdy_w_zwiazku">
+                          Nigdy nie byliśmy w związku małżeńskim
                         </SelectItem>
                         <SelectItem value="rozwod_z_wina">
                           Rozwód z orzeczeniem o winie

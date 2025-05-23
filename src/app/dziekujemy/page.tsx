@@ -101,7 +101,7 @@ export default function ThankYouPage() {
               </p>
               <p className="text-green-700 mt-2">
                 Twój formularz został pomyślnie wysłany i zapisany w naszej
-                bazie danych. Dziękujemy za wypełnienie formularza!
+                bazie danych. Dziękujemy za udział w AliMatrix!
               </p>
             </div>{" "}
             {submissionId && (
@@ -134,20 +134,16 @@ export default function ThankYouPage() {
             )}{" "}
             <div className="space-y-4">
               <p className="text-gray-700">
-                Twój raport jest już przygotowywany. Wyślemy go na podany adres
-                e-mail.
+                Dzięki Tobie mamy szansę na realną zmianę w kierunku
+                przejrzystego systemu alimentów. Raport prześlemy, gdy
+                zgromadzimy wystarczającą liczbę podobnych historii – tak, by
+                analiza była rzetelna i naprawdę pomocna właśnie Tobie. Licznik
+                zgłoszeń znajdziesz na stronie głównej – codziennie rośnie
+                dzięki takim osobom jak Ty.
               </p>
-
               <p className="text-gray-700">
-                Jeśli masz jakiekolwiek pytania lub nie otrzymasz raportu,
-                skontaktuj się z nami pod adresem{" "}
-                <a
-                  href="mailto:kontakt@alimatrix.pl"
-                  className="text-blue-600 hover:underline"
-                >
-                  kontakt@alimatrix.pl
-                </a>
-                .
+                Masz pytania lub wątpliwości? Napisz do nas:
+                kontakt@AliMatrix.pl – odpowiemy najszybciej, jak to możliwe.
               </p>
             </div>
             <div className="bg-pink-50 p-4 rounded-lg">

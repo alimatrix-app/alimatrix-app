@@ -277,9 +277,9 @@ export default function Wysylka() {
                 mogli bezpiecznie przesłać Ci Twój raport. Twój adres
                 przechowujemy zgodnie z RODO. Nie wykorzystujemy go do żadnych
                 innych celów. Dane analityczne i kontaktowe są przechowywane
-                oddzielnie, choć na potrzeby przygotowania raportu możliwe jest
-                ich powiązanie. W każdej chwili możesz zażądać wglądu, zmiany
-                lub usunięcia wszystkich swoich danych.
+                oddzielnie, wyłącznie na potrzeby wysłania raportu odbywa się
+                ich tymczasowe powiązanie. W każdej chwili możesz zażądać
+                wglądu, zmiany lub usunięcia wszystkich swoich danych.
               </p>
             </div>{" "}
             <div className="space-y-4">
