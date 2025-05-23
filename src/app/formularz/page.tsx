@@ -8,7 +8,9 @@ export default function Home() {
     <main className="flex justify-center p-3">
       <Card className="w-full max-w-lg shadow-lg border-sky-100">
         <CardContent className="pt-2">
-          <Logo size="large" />
+          <div className="text-center pb-4">
+            <Logo className="inline-block" size="large" />
+          </div>
           <div className="space-y-6">
             <div className="space-y-4 text-sky-950">
               <p>

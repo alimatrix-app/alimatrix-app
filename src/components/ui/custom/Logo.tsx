@@ -15,7 +15,7 @@ export function Logo({
   const sizes = {
     small: { width: 113, height: 40 },
     medium: { width: 170, height: 60 },
-    large: { width: 227, height: 81 },
+    large: { width: 270, height: 96 },
   };
 
   const { width, height } = sizes[size];

@@ -112,7 +112,9 @@ export default function Alternatywna() {
     <main className="flex justify-center p-3">
       <Card className="w-full max-w-lg shadow-lg border-sky-100">
         <CardContent className="pt-2">
-          <Logo size="medium" />
+          <div className="text-center pb-4">
+            <Logo className="inline-block" size="large" />
+          </div>
           <FormProgress currentStep={2} totalSteps={2} />
 
           <div className="space-y-6">

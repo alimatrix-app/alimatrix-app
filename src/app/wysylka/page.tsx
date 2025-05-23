@@ -257,8 +257,8 @@ export default function Wysylka() {
     <main className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
       <Card className="w-full max-w-lg shadow-lg">
         <CardContent className="pt-6">
-          <div className="flex justify-center mb-6">
-            <Logo size="medium" />
+          <div className="text-center pb-4">
+            <Logo className="inline-block" size="large" />
           </div>
           <FormProgress currentStep={11} totalSteps={12} />
 
