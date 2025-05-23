@@ -129,7 +129,7 @@ export default function StartPage() {
 
             <motion.h1
               variants={fadeIn}
-              className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-950 to-sky-750 leading-tight"
+              className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text bg-gradient-to-r from-sky-950 to-sky-750 leading-tight"
             >
               Alimenty bez tajemnic
             </motion.h1>
@@ -215,7 +215,7 @@ export default function StartPage() {
                 <span className="bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1 rounded-full">
                   Prosty proces
                 </span>
-                <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mt-3">
+                <h2 className="text-2xl md:text-3xl font-bold text-sky-950 mt-3">
                   Jak to działa?
                 </h2>
                 <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
@@ -232,9 +232,6 @@ export default function StartPage() {
                       <FileText className="h-7 w-7 text-blue-600" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3 flex items-center">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm mr-2">
-                        1
-                      </span>
                       Wypełniasz formularz
                     </h3>
                     <p className="text-gray-600 mb-4 flex-grow">
@@ -266,9 +263,6 @@ export default function StartPage() {
                       <ShieldCheck className="h-7 w-7 text-green-600" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3 flex items-center">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800 text-sm mr-2">
-                        2
-                      </span>
                       Twoje dane trafiają do bazy
                     </h3>
                     <p className="text-gray-600 mb-4 flex-grow">
@@ -285,9 +279,6 @@ export default function StartPage() {
                       <BarChart3 className="h-7 w-7 text-purple-600" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3 flex items-center">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-800 text-sm mr-2">
-                        3
-                      </span>
                       Analizujemy zebrane przypadki
                     </h3>
                     <p className="text-gray-600 mb-4 flex-grow">
@@ -304,9 +295,6 @@ export default function StartPage() {
                       <Users className="h-7 w-7 text-amber-600" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3 flex items-center">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-sm mr-2">
-                        4
-                      </span>
                       Pomagasz innym
                     </h3>
                     <p className="text-gray-600 mb-4 flex-grow">
@@ -320,8 +308,7 @@ export default function StartPage() {
             {/* Statistics - Enhanced */}
             <div ref={statsRef} className="py-12">
               <div className="mb-8 text-center">
-                <h2 className="text-2xl md:text-3xl font-bold text-blue-900 flex items-center justify-center">
-                  <BarChart3 className="mr-2 text-blue-600" size={24} />
+                <h2 className="text-2xl md:text-3xl font-bold text-sky-950 flex items-center justify-center">
                   Statystyki na dziś
                 </h2>
               </div>
