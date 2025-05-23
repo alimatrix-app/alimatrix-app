@@ -190,7 +190,7 @@ export default function Alternatywna() {
                       variant="secondary"
                       className="mt-2 bg-pink-500 hover:bg-pink-600 text-white w-full"
                       onClick={() =>
-                        window.open("https://zrzutka.pl", "_blank")
+                        window.open("https://zrzutka.pl/5cy9fh", "_blank")
                       }
                     >
                       Przejdź do wsparcia na zrzutka.pl

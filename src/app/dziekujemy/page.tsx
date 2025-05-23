@@ -151,15 +151,19 @@ export default function ThankYouPage() {
                 Chcesz dodatkowo wesprzeć rozwój AliMatrixa?
               </p>
               <p className="text-sm mb-2">
-                Jeśli masz ochotę – możesz również pomóc nam przyspieszyć
-                powstanie pierwszych raportów. Każde wsparcie, nawet
-                symboliczne, realnie wpływa na szybkość tworzenia narzędzia,
-                które może zmienić sposób ustalania alimentów w Polsce.
+                Projekt powstał dzięki jednorazowej dotacji na start, ale jego
+                dalszy rozwój zależy od realnego wsparcia społeczności. Każde
+                wsparcie – nawet symboliczne – pomaga nam szybciej tworzyć
+                raporty i rozwijać narzędzia, które zwiększają przejrzystość w
+                sprawach alimentacyjnych w Polsce. Jeśli widzisz w tym wartość –
+                możesz dołączyć do zbiórki.
               </p>
               <Button
                 variant="secondary"
                 className="mt-2 bg-pink-500 hover:bg-pink-600 text-white w-full"
-                onClick={() => window.open("https://zrzutka.pl", "_blank")}
+                onClick={() =>
+                  window.open("https://zrzutka.pl/5cy9fh", "_blank")
+                }
               >
                 Przejdź do wsparcia na zrzutka.pl
               </Button>
