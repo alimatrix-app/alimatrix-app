@@ -55,7 +55,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased bg-sky-50`}>
         {/* Główna zawartość */}
         <main className="min-h-screen">{children}</main>
-
+        <Analytics />
         {/* Stopka */}
         <footer className="py-3 text-center text-sm mt-8">
           <Image
