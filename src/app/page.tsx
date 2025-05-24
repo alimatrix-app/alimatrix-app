@@ -189,11 +189,21 @@ export default function StartPage() {
         </div>
       </motion.section>
       {/* Main Content */}
+      <div className="text-center pb-4">
+        <Image
+          className="inline-block"
+          src="/kct.png"
+          alt="AliMatrix Logo"
+          width={320}
+          height={80}
+          priority
+        />
+      </div>
       <motion.section
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.3 }}
-        className="py-12 px-4"
+        className="pb-12 px-4"
       >
         <div className="container mx-auto max-w-4xl">
           <div className="space-y-8 md:space-y-12">
@@ -492,6 +502,12 @@ export default function StartPage() {
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 Regulamin
+              </Link>
+              <Link
+                href="/kontakt"
+                className="text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                Kontakt
               </Link>
             </div>
           </div>
