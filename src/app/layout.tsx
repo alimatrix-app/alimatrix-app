@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Image from "next/image";
+import { Analytics } from "@vercel/analytics/next";
 
 // Konfiguracja fontu
 const inter = Inter({
@@ -66,10 +67,6 @@ export default function RootLayout({
           />
           <p>
             © {new Date().getFullYear()} AliMatrix -
-            <a href="/rodo" className="hover:underline ml-1 mr-1">
-              RODO
-            </a>{" "}
-            -
             <a href="/polityka-prywatnosci" className="hover:underline ml-1">
               Polityka Prywatności
             </a>
