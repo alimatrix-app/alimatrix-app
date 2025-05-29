@@ -8,19 +8,31 @@ datasource db {
 }
 
 model EmailSubscription {
-  id                String           @id @default(cuid())
-  email             String           @unique
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  acceptedTerms     Boolean          @default(false)
-  status            String           @default("pending")
-  verificationToken String?
-  verifiedAt        DateTime?
-  acceptedContact   Boolean          @default(false)
-  submittedAt       DateTime?
-  formSubmissions   FormSubmission[]
+  id                        String           @id @default(cuid())
+  email                     String           @unique
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  acceptedTerms             Boolean          @default(false)
+  status                    String           @default("pending")
+  verificationToken         String?
+  verifiedAt                DateTime?
+  acceptedContact           Boolean          @default(false)
+  submittedAt               DateTime?
+  consentVersion            String?          @default("1.0")
+  dataRetentionDate         DateTime?
+  emailVerificationAttempts Int              @default(0)
+  failedLoginAttempts       Int              @default(0)
+  ipAddress                 String?
+  lastLoginAt               DateTime?
+  lockedUntil               DateTime?
+  securityFlags             Json?
+  userAgent                 String?
+  formSubmissions           FormSubmission[]
 
   @@index([status])
+  @@index([email])
+  @@index([verifiedAt])
+  @@index([dataRetentionDate])
 }
 
 model FormSubmission {
@@ -88,13 +100,34 @@ model FormSubmission {
   dataRozprawy                  DateTime?         @db.Timestamp(6)
   dataZlozeniaPozwu             DateTime?         @db.Timestamp(6)
   liczbaRozpraw                 Int?
+  accessCount                   Int               @default(0)
+  anonymizedAt                  DateTime?
+  auditLogEnabled               Boolean           @default(true)
+  csrfToken                     String?
+  dataClassification            String?           @default("sensitive")
+  deletionScheduledAt           DateTime?
+  encryptionKeyId               String?
+  fingerprintId                 String?
+  ipAddress                     String?
+  lastAccessedAt                DateTime?
+  retentionCategory             String?           @default("standard")
+  riskFlags                     Json?
+  securityScore                 Int?              @default(100)
+  sessionId                     String?
+  submissionHash                String?
+  userAgent                     String?
+  auditLogs                     AuditLog[]
   dzieci                        Child[]
   dochodyRodzicow               Dochody?
   emailSubscription             EmailSubscription @relation(fields: [emailSubscriptionId], references: [id])
 
-
   @@index([status])
   @@index([emailSubscriptionId])
+  @@index([submittedAt])
+  @@index([ipAddress])
+  @@index([securityScore])
+  @@index([dataClassification])
+  @@index([deletionScheduledAt])
   @@index([rodzajSaduSad])
   @@index([apelacjaSad])
   @@index([apelacjaId])
@@ -136,18 +169,26 @@ model Child {
   wakacjeProcentCzasu           Float?
   wakacjeSzczegolowyPlan        Boolean        @default(false)
   wakacjeOpisPlan               String?
-  procentCzasuAktywnejOpieki    Float?
-  procentCzasuOpiekiBezEdukacji Float?
-  procentCzasuSnu               Float?
   poziomEdukacji                String?
   kosztySzkoly                  Decimal?       @db.Decimal(10, 2)
   dodatkZajeciaCena             Decimal?       @db.Decimal(10, 2)
   rodzajZajec                   String?
   szczegolowyProcentCzasu       Json?
+  procentCzasuAktywnejOpieki    Float?
+  procentCzasuOpiekiBezEdukacji Float?
+  procentCzasuSnu               Float?
+  accessRestricted              Boolean        @default(false)
+  dataHash                      String?
+  encryptionKeyId               String?
+  lastModifiedAt                DateTime       @updatedAt
+  modifiedBy                    String?
   formSubmission                FormSubmission @relation(fields: [formSubmissionId], references: [id], onDelete: Cascade)
 
   @@unique([formSubmissionId, childId])
+  @@unique([formSubmissionId, childId], map: "Child_formSubmissionId_childId_idx")
   @@index([formSubmissionId])
+  @@index([lastModifiedAt])
+  @@index([accessRestricted])
 }
 
 model Dochody {
@@ -163,6 +204,140 @@ model Dochody {
   drugiRodzicKoszty           Float?
   drugiRodzicKosztyInni       Float?
   drugiRodzicDodatkowe        Float?
+  auditRequired               Boolean        @default(true)
+  dataHash                    String?
+  encryptionKeyId             String?
+  lastModifiedAt              DateTime       @updatedAt
   formSubmission              FormSubmission @relation(fields: [formSubmissionId], references: [id], onDelete: Cascade)
+
+  @@index([lastModifiedAt])
+  @@index([auditRequired])
 }
 
+model AuditLog {
+  id               String          @id @default(cuid())
+  timestamp        DateTime        @default(now())
+  userId           String?
+  sessionId        String?
+  action           String
+  resource         String
+  resourceId       String?
+  formSubmissionId String?
+  ipAddress        String?
+  userAgent        String?
+  details          Json?
+  riskLevel        String          @default("low")
+  success          Boolean         @default(true)
+  errorMessage     String?
+  requestData      Json?
+  responseCode     Int?
+  processingTime   Int?
+  geolocation      Json?
+  formSubmission   FormSubmission? @relation(fields: [formSubmissionId], references: [id], onDelete: Cascade)
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([ipAddress])
+  @@index([riskLevel])
+  @@index([formSubmissionId])
+}
+
+model SecurityIncident {
+  id                String    @id @default(cuid())
+  timestamp         DateTime  @default(now())
+  incidentType      String
+  severity          String
+  ipAddress         String?
+  userAgent         String?
+  sessionId         String?
+  requestData       Json?
+  description       String
+  resolved          Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  notes             String?
+  actionTaken       String?
+  affectedResources Json?
+
+  @@index([timestamp])
+  @@index([incidentType])
+  @@index([severity])
+  @@index([ipAddress])
+  @@index([resolved])
+}
+
+model RateLimit {
+  id             String    @id @default(cuid())
+  identifier     String
+  endpoint       String
+  requestCount   Int       @default(1)
+  firstRequestAt DateTime  @default(now())
+  lastRequestAt  DateTime  @default(now())
+  blockedUntil   DateTime?
+
+  @@unique([identifier, endpoint])
+  @@index([identifier])
+  @@index([endpoint])
+  @@index([blockedUntil])
+  @@index([lastRequestAt])
+}
+
+model Session {
+  id                 String    @id @default(cuid())
+  sessionToken       String    @unique
+  userId             String?
+  ipAddress          String?
+  userAgent          String?
+  fingerprint        String?
+  createdAt          DateTime  @default(now())
+  lastActivityAt     DateTime  @default(now())
+  expiresAt          DateTime
+  active             Boolean   @default(true)
+  invalidatedAt      DateTime?
+  invalidationReason String?
+  geolocation        Json?
+  securityFlags      Json?
+
+  @@index([sessionToken])
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([expiresAt])
+  @@index([active])
+  @@index([lastActivityAt])
+}
+
+model DataRetentionPolicy {
+  id              String   @id @default(cuid())
+  resourceType    String
+  category        String
+  retentionPeriod Int
+  autoDelete      Boolean  @default(false)
+  anonymize       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  description     String?
+  legalBasis      String?
+
+  @@unique([resourceType, category])
+  @@index([resourceType])
+  @@index([category])
+}
+
+model EncryptionKey {
+  id        String    @id @default(cuid())
+  keyId     String    @unique
+  algorithm String
+  purpose   String
+  createdAt DateTime  @default(now())
+  rotatedAt DateTime?
+  expiresAt DateTime?
+  active    Boolean   @default(true)
+  keyHash   String
+
+  @@index([keyId])
+  @@index([purpose])
+  @@index([active])
+  @@index([expiresAt])
+}

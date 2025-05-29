@@ -187,6 +187,11 @@ interface FormStore {
 // Customowy storage bezpieczniejszy niż standardowy localStorage
 const safeLocalStorage = {
   getItem: (name: string): string | null => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return null;
+    }
+
     try {
       const value = localStorage.getItem(name);
 
@@ -210,6 +215,11 @@ const safeLocalStorage = {
   },
 
   setItem: (name: string, value: string): void => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
     try {
       const encoded = obfuscateData(value);
       localStorage.setItem(name, encoded);
@@ -225,6 +235,11 @@ const safeLocalStorage = {
   },
 
   removeItem: (name: string): void => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
     try {
       localStorage.removeItem(name);
     } catch (error) {

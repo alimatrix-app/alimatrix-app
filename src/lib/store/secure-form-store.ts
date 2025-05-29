@@ -25,6 +25,11 @@ interface SecureFormStore {
 // Customowy storage z szyfrowaniem
 const customStorage = {
   getItem: (name: string) => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return null;
+    }
+
     try {
       const sessionValue = sessionStorage.getItem(name);
       if (!sessionValue) return null;
@@ -46,6 +51,11 @@ const customStorage = {
   },
 
   setItem: (name: string, value: string) => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
     try {
       const encoded = obfuscateData(value);
       sessionStorage.setItem(name, encoded);
@@ -61,6 +71,11 @@ const customStorage = {
   },
 
   removeItem: (name: string) => {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
     try {
       sessionStorage.removeItem(name);
     } catch (error) {
@@ -123,7 +138,6 @@ export const useSecureFormStore = create<SecureFormStore>()(
             version: "1.1.0",
           },
         }),
-
       clearAllData: () => {
         set({
           formData: {},
@@ -132,7 +146,15 @@ export const useSecureFormStore = create<SecureFormStore>()(
             version: "1.1.0",
           },
         });
-        sessionStorage.removeItem("alimatrix-secure-form");
+
+        // Check if we're in a server environment
+        if (typeof window !== "undefined") {
+          try {
+            sessionStorage.removeItem("alimatrix-secure-form");
+          } catch (error) {
+            console.error("Error removing from sessionStorage:", error);
+          }
+        }
       },
     }),
     {
@@ -154,6 +176,11 @@ export const useSecureFormStore = create<SecureFormStore>()(
 
 // Funkcja do automatycznego czyszczenia danych po określonym czasie bezczynności
 export const setupAutoDataClear = (timeoutMinutes: number = 30) => {
+  // Check if we're in a server environment
+  if (typeof window === "undefined") {
+    return () => {}; // Return empty cleanup function
+  }
+
   let inactivityTimer: NodeJS.Timeout;
 
   const resetTimer = () => {

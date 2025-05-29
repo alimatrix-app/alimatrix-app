@@ -1,5 +1,6 @@
 // Route handler for form submissions with CSRF protection
 // Fixes made on May 20, 2025: fixed offline mode issues and proper form data storage
+// Enhanced with AliMatrix 2.0 Security Systems
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -10,6 +11,15 @@ import {
 } from "@/lib/form-validation";
 import { verifyCSRFToken, consumeCSRFToken } from "@/lib/csrf";
 import {
+  verifyCSRFToken as verifyCSRFTokenV2,
+  rotateCSRFTokens,
+} from "@/lib/csrf-v2";
+import {
+  performSecurityChecks,
+  securityHeaders,
+} from "@/lib/security-middleware";
+import { AuditLogger } from "@/lib/audit-system";
+import {
   addToOfflineQueue,
   updateDatabaseStatus,
 } from "@/lib/db-connection-helper";
@@ -17,15 +27,6 @@ import {
 // Sprawdzenie środowiska uruchomieniowego i konfiguracji bazy danych
 const isDevelopment = process.env.NODE_ENV === "development";
 // Usunięto logowanie środowiska i danych połączenia DB ze względów bezpieczeństwa
-
-// Set security headers for API responses
-const securityHeaders = {
-  "Content-Security-Policy": "default-src 'self'",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-};
 
 // Define offline subscription type
 interface OfflineSubscription {
@@ -54,56 +55,73 @@ const convertToBoolean = (value: any): boolean => {
 };
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let sessionId: string | undefined;
+  let securityCheck: any;
+
   try {
-    // Get IP for rate limiting
-    const ip = request.headers.get("x-forwarded-for") || "anonymous";
+    // Enhanced security checks with AliMatrix 2.0
+    securityCheck = await performSecurityChecks(request, {
+      requireCSRF: true,
+      rateLimit: { requests: 5, windowMs: 60000 },
+      allowedOrigins: process.env.ALLOWED_ORIGINS?.split(","),
+    });
 
-    // Apply rate limiting
-    if (!checkRateLimit(ip, 5, 60000)) {
-      return NextResponse.json(
-        { error: "Zbyt wiele żądań. Spróbuj ponownie za kilka minut." },
-        {
-          status: 429,
-          headers: {
-            ...securityHeaders,
-            "Retry-After": "60",
-          },
-        }
-      );
-    }
-
-    // Check for CSRF token in headers
-    const csrfToken = request.headers.get("X-CSRF-Token");
-    if (!csrfToken) {
-      return NextResponse.json(
-        {
-          error:
-            "Brak tokenu bezpieczeństwa. Odśwież stronę i spróbuj ponownie.",
+    if (!securityCheck.success) {
+      // Log security incident
+      await AuditLogger.logSecurityIncident({
+        incidentType: "SECURITY_CHECK_FAILED",
+        severity: "medium",
+        ipAddress: securityCheck.cleanIp,
+        userAgent: request.headers.get("user-agent") || undefined,
+        description: "Security checks failed for secure-submit endpoint",
+        requestData: {
+          endpoint: "/api/secure-submit",
+          headers: Object.fromEntries(request.headers.entries()),
         },
-        { status: 403, headers: securityHeaders }
-      );
+      });
+
+      return securityCheck.errorResponse!;
     }
 
-    // Verify the token exists and is valid
-    if (!verifyCSRFToken(csrfToken)) {
-      return NextResponse.json(
-        {
-          error:
-            "Nieprawidłowy token bezpieczeństwa. Odśwież stronę i spróbuj ponownie.",
-        },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    // Consume the token so it can't be reused (One-time use tokens)
-    consumeCSRFToken(csrfToken);
+    const ip = securityCheck.cleanIp;
+    sessionId = request.headers.get("x-session-id") || undefined;
 
     // Parse the request body
-    const body = await request.json(); // Sanitize the data to prevent injection attacks
+    const body = await request.json();
+    // Sanitize the data to prevent injection attacks
     const sanitizedBody = sanitizeFormData(body);
+
+    // Log form access
+    await AuditLogger.log({
+      sessionId,
+      action: "FORM_ACCESS",
+      resource: "secure-submit",
+      ipAddress: ip,
+      userAgent: request.headers.get("user-agent") || undefined,
+      details: {
+        endpoint: "/api/secure-submit",
+        hasEmail: !!sanitizedBody.contactEmail,
+        hasAgreements: !!(
+          sanitizedBody.zgodaPrzetwarzanie && sanitizedBody.zgodaKontakt
+        ),
+      },
+      riskLevel: "low",
+    });
 
     // Check honeypot field - if it's not empty, it's likely a bot
     if (sanitizedBody.notHuman && sanitizedBody.notHuman.length > 0) {
+      // Log bot detection
+      await AuditLogger.logSecurityIncident({
+        incidentType: "BOT_DETECTED",
+        severity: "medium",
+        ipAddress: ip,
+        userAgent: request.headers.get("user-agent") || undefined,
+        sessionId,
+        description: "Bot detected via honeypot field",
+        requestData: { endpoint: "/api/secure-submit" },
+      });
+
       // Don't reveal that we detected a bot - just return a success message
       console.warn("Bot detected via honeypot field - IP:", ip);
       return NextResponse.json(
@@ -111,7 +129,6 @@ export async function POST(request: NextRequest) {
         { status: 200, headers: securityHeaders }
       );
     }
-
     const {
       contactEmail,
       zgodaPrzetwarzanie,
@@ -122,6 +139,16 @@ export async function POST(request: NextRequest) {
 
     // Basic validation
     if (!contactEmail || typeof contactEmail !== "string") {
+      await AuditLogger.log({
+        sessionId,
+        action: "VALIDATION_FAILED",
+        resource: "secure-submit",
+        ipAddress: ip,
+        details: { reason: "Missing or invalid email" },
+        riskLevel: "medium",
+        success: false,
+      });
+
       console.error("Email validation failed:", {
         contactEmail,
         body: sanitizedBody,
@@ -133,6 +160,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!zgodaPrzetwarzanie || !zgodaKontakt) {
+      await AuditLogger.log({
+        sessionId,
+        action: "VALIDATION_FAILED",
+        resource: "secure-submit",
+        ipAddress: ip,
+        details: { reason: "Missing required agreements" },
+        riskLevel: "medium",
+        success: false,
+      });
+
       return NextResponse.json(
         { error: "Wymagane są obie zgody" },
         { status: 400, headers: securityHeaders }
@@ -143,6 +180,16 @@ export async function POST(request: NextRequest) {
     const cleanEmail = sanitizeEmail(contactEmail);
 
     if (!cleanEmail || cleanEmail.length < 5 || !cleanEmail.includes("@")) {
+      await AuditLogger.log({
+        sessionId,
+        action: "VALIDATION_FAILED",
+        resource: "secure-submit",
+        ipAddress: ip,
+        details: { reason: "Invalid email format" },
+        riskLevel: "medium",
+        success: false,
+      });
+
       console.error("Email format validation failed:", { cleanEmail });
       return NextResponse.json(
         { error: "Nieprawidłowy format adresu email" },
@@ -477,7 +524,6 @@ export async function POST(request: NextRequest) {
             dochodyRodzicow: true,
           },
         });
-
         submissionId = submission.id;
 
         // Log child and income data
@@ -486,6 +532,32 @@ export async function POST(request: NextRequest) {
 
         if (submission.dochodyRodzicow) {
         }
+
+        // Log successful form submission
+        const processingTime = Date.now() - startTime;
+        await AuditLogger.log({
+          sessionId,
+          action: "FORM_SUBMISSION_SUCCESS",
+          resource: "secure-submit",
+          resourceId: submissionId,
+          formSubmissionId: submissionId,
+          ipAddress: ip,
+          userAgent: request.headers.get("user-agent") || undefined,
+          details: {
+            email: cleanEmail,
+            hasChildren: !!(submission.dzieci && submission.dzieci.length > 0),
+            hasIncomeData: !!submission.dochodyRodzicow,
+            childrenCount: submission.dzieci?.length || 0,
+            processingTime,
+          },
+          riskLevel: "low",
+          success: true,
+          responseCode: 200,
+          processingTime,
+        });
+
+        // Generate new CSRF token for next request (rotateCSRFTokens is a cleanup function, not token generator)
+        // For now, we'll use the existing CSRF system
 
         // Return success response with details
         return NextResponse.json(
@@ -573,6 +645,26 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
+    const processingTime = Date.now() - startTime;
+
+    // Log unexpected error
+    await AuditLogger.log({
+      sessionId,
+      action: "FORM_SUBMISSION_ERROR",
+      resource: "secure-submit",
+      ipAddress: securityCheck?.cleanIp || "unknown",
+      userAgent: request.headers.get("user-agent") || undefined,
+      details: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        processingTime,
+      },
+      riskLevel: "high",
+      success: false,
+      errorMessage: error instanceof Error ? error.message : "Unexpected error",
+      responseCode: 500,
+      processingTime,
+    });
+
     console.error("Unexpected error in API route:", error);
     return NextResponse.json(
       {

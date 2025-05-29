@@ -119,6 +119,11 @@ export const checkRateLimit = (
   limit = 5,
   timeWindow = 60000
 ): boolean => {
+  // In development mode, be more lenient with rate limiting
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+
   const now = Date.now();
   const requestData = ipRequests.get(ip) || { count: 0, timestamp: now };
 
@@ -206,3 +211,185 @@ export const formDataWithMetadataSchema = z.object({
 // CSRF functionality is now imported from the csrf.ts module
 import { registerCSRFToken, verifyCSRFToken, consumeCSRFToken } from "./csrf";
 export { registerCSRFToken, verifyCSRFToken, consumeCSRFToken };
+
+// Enhanced security patterns for AliMatrix 2.0
+export const SECURITY_PATTERNS = {
+  // SQL injection patterns
+  SQL_INJECTION: [
+    /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
+    /(;|\-\-|\/\*|\*\/|xp_|@@|char\(|nchar\()/gi,
+    /(\b(or|and)\b.*[=<>].*['"])/gi,
+  ],
+
+  // XSS patterns
+  XSS: [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+    /javascript:|vbscript:|onload=|onerror=|onclick=/gi,
+    /<.*['"]\s*javascript:/gi,
+  ],
+
+  // Path traversal
+  PATH_TRAVERSAL: [/\.\.[\/\\]/g, /[\/\\]\.\.[\/\\]/g, /%2e%2e[\/\\]/gi],
+
+  // Command injection
+  COMMAND_INJECTION: [
+    /[;&|`$\(\)]/g,
+    /\b(wget|curl|nc|netcat|bash|sh|cmd|powershell)\b/gi,
+  ],
+};
+
+/**
+ * Enhanced data sanitization for AliMatrix 2.0
+ */
+export function enhancedSanitization(
+  input: any,
+  context: "email" | "text" | "number" | "json" = "text"
+): any {
+  if (input === null || input === undefined) {
+    return input;
+  }
+
+  if (typeof input === "string") {
+    let sanitized = input.trim();
+
+    // Context-specific sanitization
+    switch (context) {
+      case "email":
+        // Remove potential malicious characters from email
+        sanitized = sanitized.replace(/[<>'";\\/`]/g, "");
+        break;
+
+      case "text":
+        // Basic XSS prevention
+        sanitized = sanitized
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#x27;")
+          .replace(/\//g, "&#x2F;");
+        break;
+
+      case "number":
+        // Only allow numeric characters, dots, and minus
+        sanitized = sanitized.replace(/[^0-9.-]/g, "");
+        break;
+    }
+
+    // Check for security patterns
+    for (const [patternType, patterns] of Object.entries(SECURITY_PATTERNS)) {
+      for (const pattern of patterns) {
+        if (pattern.test(sanitized)) {
+          console.warn(
+            `Potential ${patternType} detected in input: ${sanitized.substring(
+              0,
+              50
+            )}...`
+          );
+          // Replace suspicious content with safe alternative
+          sanitized = sanitized.replace(pattern, "[FILTERED]");
+        }
+      }
+    }
+
+    return sanitized;
+  }
+
+  if (typeof input === "object") {
+    const sanitizedObj: any = Array.isArray(input) ? [] : {};
+
+    for (const [key, value] of Object.entries(input)) {
+      // Sanitize key names
+      const cleanKey = enhancedSanitization(key, "text");
+      sanitizedObj[cleanKey] = enhancedSanitization(value, "text");
+    }
+
+    return sanitizedObj;
+  }
+
+  return input;
+}
+
+/**
+ * Enhanced form data validation with security checks
+ */
+export function validateFormDataSecurity(data: any): {
+  isValid: boolean;
+  errors: string[];
+  sanitizedData?: any;
+} {
+  const errors: string[] = [];
+
+  if (!data || typeof data !== "object") {
+    return { isValid: false, errors: ["Nieprawidłowe dane formularza"] };
+  }
+
+  // Check for maximum field count to prevent DOS
+  const maxFields = 100;
+  const fieldCount = Object.keys(data).length;
+  if (fieldCount > maxFields) {
+    errors.push(`Zbyt wiele pól w formularzu (maksymalnie ${maxFields})`);
+  }
+
+  // Check for maximum string length
+  const maxStringLength = 10000;
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === "string" && value.length > maxStringLength) {
+      errors.push(`Pole ${key} przekracza maksymalną długość`);
+    }
+  }
+
+  // Sanitize all data
+  const sanitizedData = enhancedSanitization(data);
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    sanitizedData: errors.length === 0 ? sanitizedData : undefined,
+  };
+}
+
+/**
+ * Enhanced rate limiting with IP whitelist support
+ */
+interface RateLimitConfig {
+  requests: number;
+  windowMs: number;
+  whitelist?: string[];
+  blockDuration?: number;
+}
+
+const blockedIPs = new Map<string, number>();
+
+export function checkEnhancedRateLimit(
+  ip: string,
+  config: RateLimitConfig
+): boolean {
+  // Check if IP is whitelisted
+  if (config.whitelist?.includes(ip)) {
+    return true;
+  }
+
+  // Check if IP is currently blocked
+  const blockExpiry = blockedIPs.get(ip);
+  if (blockExpiry && Date.now() < blockExpiry) {
+    console.warn(`Blocked IP attempted access: ${ip}`);
+    return false;
+  }
+
+  // Remove expired blocks
+  if (blockExpiry && Date.now() >= blockExpiry) {
+    blockedIPs.delete(ip);
+  }
+
+  // Standard rate limiting
+  const isAllowed = checkRateLimit(ip, config.requests, config.windowMs);
+
+  // If rate limit exceeded, add to block list
+  if (!isAllowed && config.blockDuration) {
+    blockedIPs.set(ip, Date.now() + config.blockDuration);
+    console.warn(`IP blocked for ${config.blockDuration}ms: ${ip}`);
+  }
+
+  return isAllowed;
+}

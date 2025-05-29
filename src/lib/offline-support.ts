@@ -29,6 +29,11 @@ const useNetworkStatus = () => {
 
 // Zapisywanie danych formularza lokalnie
 const saveFormDataLocally = (formData: any) => {
+  // Check if we're in a server environment
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   try {
     localStorage.setItem(
       "alimatrix_form_backup",
@@ -46,6 +51,11 @@ const saveFormDataLocally = (formData: any) => {
 
 // Odczytywanie danych formularza z lokalnego magazynu
 const getLocalFormData = () => {
+  // Check if we're in a server environment
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   try {
     const data = localStorage.getItem("alimatrix_form_backup");
     if (data) {

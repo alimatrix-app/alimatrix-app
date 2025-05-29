@@ -274,3 +274,262 @@ function isBase64(str: string): boolean {
     return false;
   }
 }
+
+/**
+ * Enhanced security storage for AliMatrix 2.0
+ */
+export class SecureStorage {
+  private static readonly STORAGE_PREFIX = "alimatrix_secure_";
+  private static readonly ENCRYPTION_KEY = "alimatrix-2024-key";
+  static setItem(key: string, value: any, encrypt: boolean = true): boolean {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    try {
+      const serializedValue = JSON.stringify(value);
+      const finalValue = encrypt
+        ? this.encrypt(serializedValue)
+        : serializedValue;
+      localStorage.setItem(this.STORAGE_PREFIX + key, finalValue);
+      return true;
+    } catch (error) {
+      console.warn("Failed to store item securely:", error);
+      return false;
+    }
+  }
+  static getItem(key: string, decrypt: boolean = true): any {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      const item = localStorage.getItem(this.STORAGE_PREFIX + key);
+      if (!item) return null;
+
+      const value = decrypt ? this.decrypt(item) : item;
+      return JSON.parse(value);
+    } catch (error) {
+      console.warn("Failed to retrieve item securely:", error);
+      return null;
+    }
+  }
+  static removeItem(key: string): void {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    localStorage.removeItem(this.STORAGE_PREFIX + key);
+  }
+  static clear(): void {
+    // Check if we're in a server environment
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const keys = Object.keys(localStorage);
+    keys.forEach((key) => {
+      if (key.startsWith(this.STORAGE_PREFIX)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  private static encrypt(text: string): string {
+    // Simple obfuscation - in production use proper encryption
+    return btoa(text.split("").reverse().join(""));
+  }
+
+  private static decrypt(text: string): string {
+    try {
+      return atob(text).split("").reverse().join("");
+    } catch {
+      return text; // Fallback for non-encrypted data
+    }
+  }
+}
+
+/**
+ * Enhanced CSRF token management with validation
+ */
+export const enhancedStoreCSRFToken = (token: string): boolean => {
+  try {
+    // Validate token format
+    if (!token || token.length < 16) {
+      console.warn("Invalid CSRF token format");
+      return false;
+    }
+
+    // Store with timestamp and fingerprint
+    const tokenData = {
+      token,
+      timestamp: Date.now(),
+      fingerprint: generateSimpleFingerprint(),
+      userAgent: navigator.userAgent.substring(0, 100), // Limited UA string
+    };
+
+    SecureStorage.setItem("csrf_token_data", tokenData);
+
+    // Register with server
+    fetch("/api/register-csrf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({
+        token,
+        fingerprint: tokenData.fingerprint,
+      }),
+    }).catch(() => {
+      console.warn("Failed to register CSRF token with server");
+    });
+
+    return true;
+  } catch (error) {
+    console.warn("Failed to store CSRF token:", error);
+    return false;
+  }
+};
+
+/**
+ * Get CSRF token with validation
+ */
+export const getEnhancedCSRFToken = (): string | null => {
+  try {
+    const tokenData = SecureStorage.getItem("csrf_token_data");
+    if (!tokenData) return null;
+
+    // Check token age (30 minutes max)
+    const maxAge = 30 * 60 * 1000;
+    if (Date.now() - tokenData.timestamp > maxAge) {
+      SecureStorage.removeItem("csrf_token_data");
+      return null;
+    }
+
+    // Validate fingerprint
+    const currentFingerprint = generateSimpleFingerprint();
+    if (tokenData.fingerprint !== currentFingerprint) {
+      console.warn("CSRF token fingerprint mismatch");
+      SecureStorage.removeItem("csrf_token_data");
+      return null;
+    }
+
+    return tokenData.token;
+  } catch (error) {
+    console.warn("Failed to retrieve CSRF token:", error);
+    return null;
+  }
+};
+
+/**
+ * Session management utilities
+ */
+export class SessionManager {
+  private static readonly SESSION_KEY = "session_data";
+  private static readonly SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour
+
+  static createSession(userId: string, metadata: any = {}): boolean {
+    try {
+      const sessionData = {
+        userId,
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        fingerprint: generateSimpleFingerprint(),
+        metadata,
+      };
+
+      SecureStorage.setItem(this.SESSION_KEY, sessionData);
+      return true;
+    } catch (error) {
+      console.warn("Failed to create session:", error);
+      return false;
+    }
+  }
+
+  static getSession(): any {
+    try {
+      const sessionData = SecureStorage.getItem(this.SESSION_KEY);
+      if (!sessionData) return null;
+
+      // Check session timeout
+      const isExpired =
+        Date.now() - sessionData.lastActivity > this.SESSION_TIMEOUT;
+      if (isExpired) {
+        this.destroySession();
+        return null;
+      }
+
+      // Update last activity
+      sessionData.lastActivity = Date.now();
+      SecureStorage.setItem(this.SESSION_KEY, sessionData);
+
+      return sessionData;
+    } catch (error) {
+      console.warn("Failed to get session:", error);
+      return null;
+    }
+  }
+
+  static destroySession(): void {
+    SecureStorage.removeItem(this.SESSION_KEY);
+  }
+
+  static isSessionValid(): boolean {
+    return this.getSession() !== null;
+  }
+}
+
+/**
+ * Form security utilities
+ */
+export const validateFormSecurity = (
+  formElement: HTMLFormElement
+): {
+  isValid: boolean;
+  errors: string[];
+} => {
+  const errors: string[] = [];
+
+  // Check for honeypot fields
+  const honeypotFields = formElement.querySelectorAll("[data-honeypot]");
+  honeypotFields.forEach((field) => {
+    if ((field as HTMLInputElement).value.trim() !== "") {
+      errors.push("Bot detected via honeypot");
+    }
+  });
+
+  // Check CSRF token
+  const csrfToken = getEnhancedCSRFToken();
+  if (!csrfToken) {
+    errors.push("Missing or invalid CSRF token");
+  }
+
+  // Validate form fields
+  const inputs = formElement.querySelectorAll("input, textarea, select");
+  inputs.forEach((input) => {
+    const element = input as HTMLInputElement;
+    const value = element.value;
+
+    // Check for suspicious patterns
+    const suspiciousPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /on\w+=/i,
+      /\bexec\b/i,
+      /\beval\b/i,
+    ];
+
+    if (suspiciousPatterns.some((pattern) => pattern.test(value))) {
+      errors.push(`Suspicious content detected in field: ${element.name}`);
+    }
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
