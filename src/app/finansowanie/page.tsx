@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { ClickableRadioOption } from "@/components/ui/custom/ClickableRadioOption";
 import { useFormStore } from "@/lib/store/form-store";
-import { useSecureFormStore } from "@/lib/store/secure-form-store";
 import { financingMethodSchema } from "@/lib/schemas/financing-schema";
 import {
   generateCSRFToken,
@@ -74,14 +73,20 @@ FinancingQuestion.displayName = "FinancingQuestion";
 export default function Finansowanie() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
-  const secureStore = useSecureFormStore(); // CSRF token initialization
+  const secureStore = useFormStore(); // CSRF token initialization
   const csrfInitialized = useRef(false);
 
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      secureStore.setMetaData({ csrfToken: token });
+      secureStore.updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.1.0",
+        },
+      });
       csrfInitialized.current = true;
     }
   }, []); // Pusta tablica zależności - efekt wykonuje się tylko raz

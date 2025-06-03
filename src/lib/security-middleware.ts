@@ -1,7 +1,7 @@
 // Enhanced security middleware for AliMatrix 2.0
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyCSRFToken, consumeCSRFToken } from "./csrf";
+import { verifyCSRFToken, consumeCSRFToken } from "./csrf-v2";
 import { checkRateLimit } from "./form-validation";
 
 // Security headers for all API responses

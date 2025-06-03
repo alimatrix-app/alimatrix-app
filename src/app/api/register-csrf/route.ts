@@ -1,7 +1,6 @@
 // Route handler for CSRF token registration - Enhanced with AliMatrix 2.0 Security Systems
 import { NextRequest, NextResponse } from "next/server";
-import { registerCSRFToken } from "@/lib/csrf";
-import { registerCSRFToken as registerCSRFTokenV2 } from "@/lib/csrf-v2";
+import { registerCSRFToken } from "@/lib/csrf-v2";
 import {
   performSecurityChecks,
   securityHeaders,
@@ -63,12 +62,11 @@ export async function POST(request: NextRequest) {
           headers: securityHeaders,
         }
       );
-    } // Register the token with both systems for compatibility
+    } // Register the token with the enhanced CSRF system
     try {
       registerCSRFToken(token);
-      registerCSRFTokenV2(token);
 
-      // Tokens registered successfully
+      // Token registered successfully
     } catch (registrationError) {
       await AuditLogger.log({
         sessionId,

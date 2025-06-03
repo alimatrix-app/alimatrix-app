@@ -9,9 +9,9 @@ import {
   sanitizeFormData,
   checkRateLimit,
 } from "@/lib/form-validation";
-import { verifyCSRFToken, consumeCSRFToken } from "@/lib/csrf";
 import {
-  verifyCSRFToken as verifyCSRFTokenV2,
+  verifyCSRFToken,
+  consumeCSRFToken,
   rotateCSRFTokens,
 } from "@/lib/csrf-v2";
 import {

@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { InfoTooltip } from "@/components/ui/custom/InfoTooltip";
 
 import { useFormStore } from "@/lib/store/form-store";
-import { useSecureFormStore } from "@/lib/store/secure-form-store";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, memo, useRef } from "react";
 import {
@@ -81,15 +80,20 @@ PathOption.displayName = "PathOption";
 export default function WyborSciezki() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
-  const secureStore = useSecureFormStore();
+  const secureStore = useFormStore();
   // CSRF token initialization
   const csrfInitialized = useRef(false);
-
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      secureStore.setMetaData({ csrfToken: token });
+      secureStore.updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.1.0",
+        },
+      });
       csrfInitialized.current = true;
     }
   }, []);

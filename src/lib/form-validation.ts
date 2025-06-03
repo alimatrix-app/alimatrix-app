@@ -208,8 +208,12 @@ export const formDataWithMetadataSchema = z.object({
   }),
 });
 
-// CSRF functionality is now imported from the csrf.ts module
-import { registerCSRFToken, verifyCSRFToken, consumeCSRFToken } from "./csrf";
+// CSRF functionality is now imported from the csrf-v2.ts module
+import {
+  registerCSRFToken,
+  verifyCSRFToken,
+  consumeCSRFToken,
+} from "./csrf-v2";
 export { registerCSRFToken, verifyCSRFToken, consumeCSRFToken };
 
 // Enhanced security patterns for AliMatrix 2.0

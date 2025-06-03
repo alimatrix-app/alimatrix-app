@@ -1,4 +1,5 @@
 # Ignoruj pliki z problemami ESLint na produkcji
+
 src/lib/form-validation.ts
 src/lib/client-security.ts
 src/lib/cleanup.ts

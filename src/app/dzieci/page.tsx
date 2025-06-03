@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useFormStore } from "@/lib/store/form-store";
-import { useSecureFormStore } from "@/lib/store/secure-form-store";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, MinusCircle, Loader2 } from "lucide-react";
 import {
@@ -38,7 +37,7 @@ import {
 export default function Dzieci() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
-  const secureStore = useSecureFormStore();
+  const secureStore = useFormStore();
 
   // CSRF token initialization
   const csrfInitialized = useRef(false);
@@ -47,7 +46,13 @@ export default function Dzieci() {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      secureStore.setMetaData({ csrfToken: token });
+      secureStore.updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.1.0",
+        },
+      });
       csrfInitialized.current = true;
     }
   }, [secureStore]); // Zabezpieczenie - sprawdzamy czy użytkownik przeszedł przez poprzednie kroki
