@@ -1,24 +1,45 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Image from "next/image";
 import { Analytics } from "@vercel/analytics/next";
 
-// Konfiguracja fontu
+// Optymalna konfiguracja fontu
 const inter = Inter({
-  subsets: ["latin", "latin-ext"], // Obsługa polskich znaków
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
-  display: "swap", // Zapobiega "niewidzialnemu tekstowi" podczas ładowania fontu
-  variable: "--font-inter", // Dostęp do fontu przez zmienną CSS
+  display: "swap",
+  variable: "--font-inter",
 });
-/*
-// Konfiguracja metadanych dla SEO
+
+// Viewport config
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#0ea5e9",
+};
+
+// Minimalistyczne ale SKUTECZNE metadata
 export const metadata: Metadata = {
-  title: "AliMatrix - Kalkulator alimentów | Oblicz alimenty online",
+  title: {
+    default: "AliMatrix - Kalkulator alimentów | Oblicz alimenty online",
+    template: "%s | AliMatrix",
+  },
   description:
-    "AliMatrix to narzędzie oparte na danych, pomagające ustalić wysokość alimentów w Polsce w oparciu o rzeczywiste orzeczenia i sytuacje.",
- 
-  // Open Graph dla lepszego udostępniania w mediach społecznościowych
+    "AliMatrix to narzędzie oparte na danych, pomagające ustalić wysokość alimentów w Polsce w oparciu o rzeczywiste orzeczenia sądowe. Bezpłatny kalkulator alimentów.",
+
+  keywords: [
+    "alimenty",
+    "kalkulator alimentów",
+    "prawo rodzinne",
+    "opieka nad dzieckiem",
+    "alimenty dzieci",
+    "wysokość alimentów",
+    "rozwód alimenty",
+  ],
+
   openGraph: {
     title: "AliMatrix - Alimenty bez tajemnic",
     description:
@@ -26,25 +47,22 @@ export const metadata: Metadata = {
     images: [{ url: "/images/og-image.png", width: 1200, height: 630 }],
     locale: "pl_PL",
     type: "website",
+    siteName: "AliMatrix",
   },
 
-  // Ikony
-  icons: {
-    icon: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  robots: {
+    index: true,
+    follow: true,
   },
- 
-  // Dodatkowe przydatne metadane
-  keywords: [
-    "alimenty",
-    "kalkulator alimentów",
-    "prawo rodzinne",
-    "opieka nad dzieckiem",
-  ],
-  robots: { index: true, follow: true },
-  authors: [{ name: "AliMatrix" }],
+
+  authors: [{ name: "AliMatrix Team" }],
+
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
-*/
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -53,25 +71,75 @@ export default function RootLayout({
   return (
     <html lang="pl" className={inter.variable}>
       <body className={`${inter.className} antialiased bg-sky-50`}>
-        {/* Główna zawartość */}
-        <main className="min-h-screen">{children}</main>
+        {/* Skip link dla accessibility - JEDYNA rzeczywista wartość */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-sky-600 focus:text-white focus:rounded-md"
+        >
+          Przejdź do głównej treści
+        </a>
+
+        {/* Poprawiona struktura HTML */}
+        <div className="min-h-screen flex flex-col">
+          <main id="main-content" className="flex-1">
+            {children}
+          </main>
+
+          <footer className="mt-auto py-8 text-center text-sm bg-white border-t border-sky-100">
+            <div className="container mx-auto px-4">
+              <div className="mb-6">
+                <Image
+                  className="block mx-auto max-w-full h-auto"
+                  src="/image_from_ios.gif"
+                  width={500}
+                  height={500}
+                  alt="Dofinansowano ze środków Unii Europejskiej"
+                  loading="lazy"
+                />
+              </div>
+
+              <nav aria-label="Linki w stopce" className="mb-4">
+                <ul className="flex flex-wrap justify-center gap-4 text-sm">
+                  <li>
+                    <a
+                      href="/polityka-prywatnosci"
+                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                    >
+                      Polityka Prywatności
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/regulamin"
+                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                    >
+                      Regulamin
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/kontakt"
+                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                    >
+                      Kontakt
+                    </a>
+                  </li>
+                </ul>
+              </nav>
+
+              <p className="text-gray-600">
+                © {new Date().getFullYear()} AliMatrix. Wszystkie prawa
+                zastrzeżone.
+              </p>
+
+              <p className="text-xs text-gray-500 mt-2">
+                Narzędzie ma charakter informacyjny. Nie stanowi porady prawnej.
+              </p>
+            </div>
+          </footer>
+        </div>
+
         <Analytics />
-        {/* Stopka */}
-        <footer className="py-3 text-center text-sm mt-8">
-          <Image
-            className="block mx-auto"
-            src="/image_from_ios.gif"
-            width={500}
-            height={500}
-            alt="Dofinansowano ze środków Unii Europejskiej"
-          />
-          <p>
-            © {new Date().getFullYear()} AliMatrix -
-            <a href="/polityka-prywatnosci" className="hover:underline ml-1">
-              Polityka Prywatności
-            </a>
-          </p>
-        </footer>
       </body>
     </html>
   );
