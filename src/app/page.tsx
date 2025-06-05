@@ -30,6 +30,7 @@ export default function StartPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [currentYear, setCurrentYear] = useState(2024);
+  const [mounted, setMounted] = useState(false);
 
   // References for scroll animations
   const heroRef = useRef(null);
@@ -44,7 +45,8 @@ export default function StartPage() {
   const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.98]);
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
   useEffect(() => {
-    // Set current year on client side to avoid hydration mismatch
+    // Set mounted flag and current year on client side to avoid hydration mismatch
+    setMounted(true);
     setCurrentYear(new Date().getFullYear());
 
     const handleScroll = () => {
@@ -91,9 +93,11 @@ export default function StartPage() {
     animate: { opacity: 1, scale: 1 },
     transition: { duration: 0.6, ease: "easeOut" },
   };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 overflow-x-hidden relative">
+    <div
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 overflow-x-hidden relative"
+      suppressHydrationWarning
+    >
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -113,12 +117,11 @@ export default function StartPage() {
             ease: "linear",
           }}
         />
-      </div>
-
+      </div>{" "}
       {/* Header with glassmorphism */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 py-4 px-4 transition-all duration-500 ${
-          isScrolled
+          mounted && isScrolled
             ? "bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-black/5"
             : "bg-transparent"
         }`}
@@ -144,7 +147,6 @@ export default function StartPage() {
           </motion.div>
         </div>
       </header>
-
       {/* Enhanced Hero Section */}
       <motion.section
         ref={heroRef}
@@ -273,7 +275,6 @@ export default function StartPage() {
           </motion.div>
         </div>
       </motion.section>
-
       {/* Enhanced Logo Section */}
       <motion.div
         className="text-center pb-8"
@@ -295,7 +296,6 @@ export default function StartPage() {
           />
         </motion.div>
       </motion.div>
-
       {/* Enhanced Main Content */}
       <motion.section
         initial={{ opacity: 0 }}
@@ -633,7 +633,6 @@ export default function StartPage() {
           </div>
         </div>
       </motion.section>
-
       {/* Enhanced Footer */}
       <footer className="py-12 px-4 bg-gradient-to-r from-slate-50 to-blue-50/30 border-t border-slate-200/50 backdrop-blur-sm">
         <div className="container mx-auto max-w-5xl">

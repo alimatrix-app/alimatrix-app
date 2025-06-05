@@ -4,7 +4,6 @@ import "./globals.css";
 import Image from "next/image";
 import { Analytics } from "@vercel/analytics/next";
 
-// Optymalna konfiguracja fontu
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
@@ -12,33 +11,22 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-// Viewport config
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#0ea5e9",
+  themeColor: "#002645",
 };
 
-// Minimalistyczne ale SKUTECZNE metadata
 export const metadata: Metadata = {
+  metadataBase: new URL("https://alimatrix.pl"),
   title: {
     default: "AliMatrix - Kalkulator alimentów | Oblicz alimenty online",
     template: "%s | AliMatrix",
   },
   description:
-    "AliMatrix to narzędzie oparte na danych, pomagające ustalić wysokość alimentów w Polsce w oparciu o rzeczywiste orzeczenia sądowe. Bezpłatny kalkulator alimentów.",
-
-  keywords: [
-    "alimenty",
-    "kalkulator alimentów",
-    "prawo rodzinne",
-    "opieka nad dzieckiem",
-    "alimenty dzieci",
-    "wysokość alimentów",
-    "rozwód alimenty",
-  ],
+    "AliMatrix to narzędzie oparte na danych, pomagające ustalić wysokość alimentów w Polsce w oparciu o rzeczywiste orzeczenia sądowe. Profesjonalny kalkulator alimentów.",
 
   openGraph: {
     title: "AliMatrix - Alimenty bez tajemnic",
@@ -59,7 +47,7 @@ export const metadata: Metadata = {
 
   icons: {
     icon: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    apple: "/favicon.ico",
   },
 };
 
@@ -97,13 +85,12 @@ export default function RootLayout({
                   loading="lazy"
                 />
               </div>
-
               <nav aria-label="Linki w stopce" className="mb-4">
                 <ul className="flex flex-wrap justify-center gap-4 text-sm">
                   <li>
                     <a
                       href="/polityka-prywatnosci"
-                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                      className="text-sky-950 hover:text-sky-900 hover:underline"
                     >
                       Polityka Prywatności
                     </a>
@@ -111,7 +98,7 @@ export default function RootLayout({
                   <li>
                     <a
                       href="/regulamin"
-                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                      className="text-sky-950 hover:text-sky-900 hover:underline"
                     >
                       Regulamin
                     </a>
@@ -119,21 +106,15 @@ export default function RootLayout({
                   <li>
                     <a
                       href="/kontakt"
-                      className="text-sky-700 hover:text-sky-900 hover:underline"
+                      className="text-sky-950 hover:text-sky-900 hover:underline"
                     >
                       Kontakt
                     </a>
                   </li>
                 </ul>
-              </nav>
-
+              </nav>{" "}
               <p className="text-gray-600">
-                © {new Date().getFullYear()} AliMatrix. Wszystkie prawa
-                zastrzeżone.
-              </p>
-
-              <p className="text-xs text-gray-500 mt-2">
-                Narzędzie ma charakter informacyjny. Nie stanowi porady prawnej.
+                © 2025 AliMatrix. Wszystkie prawa zastrzeżone.
               </p>
             </div>
           </footer>
