@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -17,11 +17,33 @@ import {
   trackedLog,
   retryOperation,
 } from "@/lib/form-handlers";
-import { safeToSubmit, recordSubmission } from "@/lib/client-security";
+import {
+  generateCSRFToken,
+  storeCSRFToken,
+  safeToSubmit,
+  recordSubmission,
+} from "@/lib/client-security";
 
 export default function OpiekaWakacje() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF token initialization - improved strict mode compatibility
+  const csrfInitialized = useRef(false);
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+    }
+  }, [updateFormData]);
 
   // Funkcja scrollToTop zaimplementowana bezpośrednio w komponencie
   const scrollToTop = useCallback(() => {
@@ -114,7 +136,7 @@ export default function OpiekaWakacje() {
               dzieci: zaktualizowaneDzieci,
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.1.0",
+                formVersion: "1.2.0",
               },
             });
             return true;
@@ -126,11 +148,10 @@ export default function OpiekaWakacje() {
             operationId,
           }
         );
-
         trackedLog(operationId, "Opieka wakacje data saved successfully");
         return true;
       } catch (error) {
-        trackedLog(operationId, "Error saving data", error, "error");
+        trackedLog(operationId, "Error saving data", "error");
         setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
         return false;
       }
@@ -143,15 +164,11 @@ export default function OpiekaWakacje() {
     wakacjeSzczegolowyPlan,
     wakacjeOpisPlan,
     updateFormData,
-  ]);
-  // Funkcja do zapisywania danych i przechodzenia do następnego kroku
+  ]); // Funkcja do zapisywania danych i przechodzenia do następnego kroku
   const handleNext = useCallback(async () => {
     // Zapobieganie wielokrotnym kliknięciom
     if (isSubmitting || !safeToSubmit()) {
-      trackedLog(
-        "user-action",
-        "Form submission prevented: Already submitting or too soon after last submission"
-      );
+      trackedLog("user-action", "Form submission prevented");
       return;
     }
 
@@ -183,7 +200,7 @@ export default function OpiekaWakacje() {
         setIsSubmitting(false);
       }
     } catch (error) {
-      trackedLog(operationId, "Unexpected error", error, "error");
+      trackedLog(operationId, "Unexpected error", "error");
       setError("Wystąpił nieoczekiwany błąd. Spróbuj ponownie.");
       setIsSubmitting(false);
     }

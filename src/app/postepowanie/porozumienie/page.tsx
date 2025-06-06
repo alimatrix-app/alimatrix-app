@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -18,10 +18,51 @@ import {
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import {
+  generateCSRFToken,
+  storeCSRFToken,
+  safeToSubmit,
+  recordSubmission,
+} from "@/lib/client-security";
+import {
+  generateOperationId,
+  trackedLog,
+  retryOperation,
+} from "@/lib/form-handlers";
 
 export default function PostepowaniePorozumienie() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF token initialization - enhanced security protection for agreement proceedings
+  const csrfInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const operationId = generateOperationId();
+      trackedLog(
+        operationId,
+        "Initializing CSRF protection for agreement proceedings"
+      );
+
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+
+      trackedLog(
+        operationId,
+        "CSRF protection initialized for agreement proceedings"
+      );
+    }
+  }, [updateFormData]);
 
   // Stan oceny adekwatności porozumienia
   const [ocenaAdekwatnosci, setOcenaAdekwatnosci] = useState<number>(
@@ -42,36 +83,166 @@ export default function PostepowaniePorozumienie() {
     formData.klauzulaWaloryzacyjna || ""
   );
 
-  // Funkcja obsługująca przejście do następnego kroku
-  const handleNext = () => {
-    // Zapisujemy dane do store'a
-    updateFormData({
-      ocenaAdekwatnosciPorozumienie: ocenaAdekwatnosci,
-      wariantPostepu: "agreement", // Upewniamy się, że wariant jest zapisany
-      dataPorozumienia: dataPorozumienia,
-      sposobPorozumienia: sposobPorozumienia,
-      formaPorozumienia: formaPorozumienia,
-      klauzulaWaloryzacyjna: klauzulaWaloryzacyjna,
-    });
+  // Enhanced state management for security and error handling
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    // Przekierowanie do następnego kroku
-    router.push("/informacje-o-tobie");
-  };
+  // Scroll to top function
+  const scrollToTop = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
 
-  // Funkcja obsługująca powrót do poprzedniego kroku
-  const handleBack = () => {
-    // Zapisujemy dane przed powrotem
-    updateFormData({
-      ocenaAdekwatnosciPorozumienie: ocenaAdekwatnosci,
-      wariantPostepu: "agreement", // Upewniamy się, że wariant jest zapisany
-      dataPorozumienia: dataPorozumienia,
-      sposobPorozumienia: sposobPorozumienia,
-      formaPorozumienia: formaPorozumienia,
-      klauzulaWaloryzacyjna: klauzulaWaloryzacyjna,
-    });
+  // Enhanced function for handling next step with security features
+  const handleNext = useCallback(async () => {
+    // Prevent multiple submissions
+    if (isSubmitting || !safeToSubmit()) {
+      trackedLog(
+        "user-action",
+        "Form submission prevented: Already submitting or too soon after last submission"
+      );
+      return;
+    }
 
-    router.push("/dochody-i-koszty");
-  };
+    setIsSubmitting(true);
+    setError(null);
+
+    const operationId = generateOperationId();
+    trackedLog(operationId, "Starting agreement proceedings form submission");
+
+    try {
+      // Prepare secure form data
+      const porozumienieData = {
+        ocenaAdekwatnosciPorozumienie: ocenaAdekwatnosci,
+        wariantPostepu: "agreement" as const,
+        dataPorozumienia: dataPorozumienia,
+        sposobPorozumienia: sposobPorozumienia,
+        formaPorozumienia: formaPorozumienia,
+        klauzulaWaloryzacyjna: klauzulaWaloryzacyjna,
+      };
+
+      // Save data with retry mechanism for enhanced reliability
+      await retryOperation(
+        async () => {
+          await updateFormData({
+            ...porozumienieData,
+            __meta: {
+              lastUpdated: Date.now(),
+              formVersion: "1.2.0",
+              csrfToken: formData.__meta?.csrfToken,
+            },
+          });
+          return true;
+        },
+        {
+          maxAttempts: 3,
+          delayMs: 300,
+          operationName: "Update form data - agreement proceedings",
+          operationId,
+        }
+      );
+
+      // Record form submission for security analysis
+      recordSubmission();
+      trackedLog(operationId, "Agreement proceedings data saved successfully");
+
+      // Scroll to top before navigation
+      scrollToTop();
+
+      // Enhanced navigation with delay for better UX
+      setTimeout(() => {
+        trackedLog(operationId, "Navigating to informacje-o-tobie");
+        router.push("/informacje-o-tobie");
+
+        // Prevent back button issues
+        setTimeout(() => {
+          setIsSubmitting(false);
+        }, 500);
+      }, 100);
+    } catch (error) {
+      trackedLog(
+        operationId,
+        "Error in agreement proceedings submission",
+        error,
+        "error"
+      );
+      setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
+      setIsSubmitting(false);
+      scrollToTop();
+    }
+  }, [
+    isSubmitting,
+    ocenaAdekwatnosci,
+    dataPorozumienia,
+    sposobPorozumienia,
+    formaPorozumienia,
+    klauzulaWaloryzacyjna,
+    formData.__meta?.csrfToken,
+    updateFormData,
+    router,
+    scrollToTop,
+  ]);
+
+  // Enhanced function for handling back navigation with security features
+  const handleBack = useCallback(async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    const operationId = generateOperationId();
+    trackedLog(operationId, "Back navigation from agreement proceedings");
+
+    try {
+      // Save current data before going back
+      const porozumienieData = {
+        ocenaAdekwatnosciPorozumienie: ocenaAdekwatnosci,
+        wariantPostepu: "agreement" as const,
+        dataPorozumienia: dataPorozumienia,
+        sposobPorozumienia: sposobPorozumienia,
+        formaPorozumienia: formaPorozumienia,
+        klauzulaWaloryzacyjna: klauzulaWaloryzacyjna,
+      };
+
+      await updateFormData({
+        ...porozumienieData,
+        __meta: {
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+          csrfToken: formData.__meta?.csrfToken,
+        },
+      });
+
+      // Scroll to top before navigation
+      scrollToTop();
+
+      setTimeout(() => {
+        trackedLog(operationId, "Navigating back to dochody-i-koszty");
+        router.push("/dochody-i-koszty");
+        setIsSubmitting(false);
+      }, 100);
+    } catch (error) {
+      trackedLog(operationId, "Error during back navigation", error, "error");
+      setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
+      setIsSubmitting(false);
+      scrollToTop();
+    }
+  }, [
+    isSubmitting,
+    ocenaAdekwatnosci,
+    dataPorozumienia,
+    sposobPorozumienia,
+    formaPorozumienia,
+    klauzulaWaloryzacyjna,
+    formData.__meta?.csrfToken,
+    updateFormData,
+    router,
+    scrollToTop,
+  ]);
 
   return (
     <main className="flex justify-center p-3">
@@ -126,7 +297,6 @@ export default function PostepowaniePorozumienie() {
                   className="w-full"
                 />
               </div>
-
               <div>
                 <Label className="block mb-2">
                   Sposób zawarcia porozumienia
@@ -152,7 +322,6 @@ export default function PostepowaniePorozumienie() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div>
                 <Label className="block mb-2">Forma porozumienia</Label>
                 <Select
@@ -174,7 +343,6 @@ export default function PostepowaniePorozumienie() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div>
                 <Label className="block mb-2">
                   Czy porozumienie zawiera klauzulę waloryzacyjną?
@@ -209,7 +377,6 @@ export default function PostepowaniePorozumienie() {
                   </div>
                 </RadioGroup>
               </div>
-
               <label className="block">
                 <span className="block mb-2">
                   Jak oceniasz adekwatność osiągniętego porozumienia w Twojej
@@ -254,15 +421,45 @@ export default function PostepowaniePorozumienie() {
                     </span>
                   </div>
                 </div>
-              </label>
+              </label>{" "}
             </div>
 
+            {/* Error display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
-              <Button variant="outline" className="flex-1" onClick={handleBack}>
-                Wstecz
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleBack}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Wracam...
+                  </>
+                ) : (
+                  "Wstecz"
+                )}
               </Button>
-              <Button className="flex-1" onClick={handleNext}>
-                Dalej
+              <Button
+                className="flex-1"
+                onClick={handleNext}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Zapisuję...
+                  </>
+                ) : (
+                  "Dalej"
+                )}
               </Button>
             </div>
           </div>

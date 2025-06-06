@@ -37,23 +37,25 @@ import {
 export default function Dzieci() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+  const secureStore = useFormStore();
 
   // CSRF token initialization
   const csrfInitialized = useRef(false);
+
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      updateFormData({
+      secureStore.updateFormData({
         __meta: {
           csrfToken: token,
           lastUpdated: Date.now(),
-          formVersion: "1.2.0",
+          formVersion: "1.1.0",
         },
       });
       csrfInitialized.current = true;
     }
-  }, [updateFormData]); // Zabezpieczenie - sprawdzamy czy użytkownik przeszedł przez poprzednie kroki
+  }, [secureStore]); // Zabezpieczenie - sprawdzamy czy użytkownik przeszedł przez poprzednie kroki
   useEffect(() => {
     if (!formData.podstawaUstalen) {
       router.push("/podstawa-ustalen");
@@ -158,6 +160,7 @@ export default function Dzieci() {
 
   // Stan przycisku do zapobiegania wielokrotnym kliknięciom
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Aktualizacja dzieci, gdy zmieni się liczba dzieci
   useEffect(() => {
     // Jeśli brakuje dzieci, dodajemy nowe
@@ -177,7 +180,8 @@ export default function Dzieci() {
         });
       }
       setDzieci(noweDzieci);
-    } // Jeśli jest za dużo dzieci, usuwamy nadmiarowe
+    }
+    // Jeśli jest za dużo dzieci, usuwamy nadmiarowe
     else if (dzieci.length > liczbaDzieci) {
       setDzieci(dzieci.slice(0, liczbaDzieci));
       // Usuwamy również błędy dla usuniętych dzieci
@@ -224,7 +228,10 @@ export default function Dzieci() {
 
     try {
       // Walidacja danych przy użyciu schematu Zod dla aktualnego dziecka
-      trackedLog(operationId, "Validating form data for current child");
+      trackedLog(operationId, "Validating form data for current child", {
+        childIndex: aktualneDzieckoIndex,
+        childId: aktualneDziecko.id,
+      });
 
       const dzieckoToValidate = {
         id: aktualneDziecko.id,
@@ -434,7 +441,7 @@ export default function Dzieci() {
                 dzieciDoZapisu[aktualneDzieckoIndex].id,
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.2.0",
+                formVersion: "1.1.0",
               },
             });
             return true;

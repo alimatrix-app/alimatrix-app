@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, memo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { ClickableRadioOption } from "@/components/ui/custom/ClickableRadioOption";
 import { useFormStore } from "@/lib/store/form-store";
-import { settlementBaseSchema } from "@/lib/schemas/settlement-base-schema";
+import { financingMethodSchema } from "@/lib/schemas/financing-schema";
 import {
   generateCSRFToken,
   storeCSRFToken,
@@ -24,40 +24,81 @@ import {
   retryOperation,
 } from "@/lib/form-handlers";
 
-export default function PodstawaUstalen() {
+// Memoizowany komponent opisu pytania
+const FinancingQuestion = memo(() => (
+  <div className="space-y-2">
+    <div className="flex items-center gap-2">
+      <h1 className="text-2xl font-bold">
+        Sposób finansowania potrzeb dziecka
+      </h1>
+      <InfoTooltip
+        content={
+          <div className="space-y-2 text-sm">
+            <p>
+              Pytamy o główne zasady finansowania potrzeb dziecka lub dzieci.
+              Wiemy, że w praktyce sytuacje bywają różne – ale ważne, żeby
+              istniał ustalony sposób dzielenia się kosztami, nawet nieformalny.
+            </p>
+          </div>
+        }
+      />
+    </div>
+    <p className="text-bold">
+      Jak w Twojej sytuacji wygląda obecnie główne ustalenie dotyczące
+      finansowania potrzeb dziecka lub dzieci?
+    </p>
+    <p>
+      (jeśli masz więcej niż jedno dziecko, odpowiedz ogólnie – w kolejnych
+      pytaniach będzie miejsce na szczegóły)
+    </p>
+    <p className="font-semibold mb-2">
+      Wybierz opcję, która najlepiej oddaje Twoją sytuację:{" "}
+    </p>
+    <InfoTooltip
+      content={
+        <div className="space-y-2 text-sm">
+          <p>
+            Twoja odpowiedź pomoże dostosować dalsze pytania w formularzu do
+            Twojej sytuacji. Dzięki temu raport, który otrzymasz, będzie lepiej
+            odzwierciedlał Twoją rzeczywistość.
+          </p>
+        </div>
+      }
+    />
+  </div>
+));
+
+FinancingQuestion.displayName = "FinancingQuestion";
+
+export default function Finansowanie() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
-
-  // CSRF token initialization
+  const secureStore = useFormStore(); // CSRF token initialization
   const csrfInitialized = useRef(false);
+
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      updateFormData({
+      secureStore.updateFormData({
         __meta: {
           csrfToken: token,
           lastUpdated: Date.now(),
-          formVersion: "1.2.0",
+          formVersion: "1.1.0",
         },
       });
       csrfInitialized.current = true;
     }
-  }, [updateFormData]);
+  }, []); // Pusta tablica zależności - efekt wykonuje się tylko raz
 
-  // Funkcja scrollToTop dla lepszego UX przy przejściach
+  // Funkcja scrollToTop zaimplementowana bezpośrednio w komponencie
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   // Inicjalizacja stanu wybranej opcji z danych formularza (jeśli istnieją)
   const [selectedOption, setSelectedOption] = useState<string>(
-    formData.podstawaUstalen || ""
-  );
-
-  // Stan dla pola "inne" szczegóły
-  const [inneDetails, setInneDetails] = useState<string>(
-    formData.podstawaUstalenInne || ""
+    formData.sposobFinansowania || ""
   );
 
   // Stan błędu do walidacji
@@ -65,25 +106,26 @@ export default function PodstawaUstalen() {
 
   // Stan przycisku do zapobiegania wielokrotnym kliknięciom
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Efekt do sprawdzania zależności i czyszczenia błędów
+
+  // Efekt do sprawdzania zależności
   useEffect(() => {
     if (selectedOption) {
       setError(null);
     }
   }, [selectedOption]);
 
-  // Zabezpieczenie - sprawdzamy czy użytkownik przeszedł przez poprzednie kroki
+  // Zabezpieczenie - sprawdzamy czy użytkownik przeszedł przez wybór ścieżki
   useEffect(() => {
     if (!formData.sciezkaWybor) {
       router.push("/sciezka");
-      return;
     }
+  }, [formData.sciezkaWybor, router]);
 
-    if (!formData.sposobFinansowania) {
-      router.push("/finansowanie");
-      return;
-    }
-  }, [formData.sciezkaWybor, formData.sposobFinansowania, router]); // Funkcja do obsługi przejścia do następnego kroku
+  // Handler zmiany opcji (memoizowany dla wydajności)
+  const handleOptionChange = useCallback((value: string) => {
+    setSelectedOption(value);
+  }, []);
+  // Funkcja do obsługi przejścia do następnego kroku
   const handleNext = useCallback(async () => {
     // Zapobieganie wielokrotnym kliknięciom z wizualnym feedbackiem
     if (isSubmitting || !safeToSubmit()) {
@@ -96,40 +138,24 @@ export default function PodstawaUstalen() {
 
     // Unikalny identyfikator dla bieżącej operacji (dla debugowania)
     const operationId = generateOperationId();
-    trackedLog(operationId, "Starting settlement base form submission");
+    trackedLog(operationId, "Starting financing form submission");
 
     setIsSubmitting(true);
 
     try {
-      // Określamy kategorię podstawy ustaleń do użycia w kroku 9
-      let wariantPostepu: "court" | "agreement" | "other" = "other"; // Domyślnie "inne"
-
-      if (["zabezpieczenie", "wyrok", "ugoda-sad"].includes(selectedOption)) {
-        wariantPostepu = "court"; // Wariant dla postępowania sądowego      } else if (["mediacja", "prywatne"].includes(selectedOption)) {
-        wariantPostepu = "agreement"; // Wariant dla porozumienia
-      }
-
       // Walidacja danych przy użyciu schematu Zod
-      trackedLog(operationId, "Validating form data");
-
-      const validationResult = settlementBaseSchema.safeParse({
-        podstawaUstalen: selectedOption,
-        podstawaUstalenInne: selectedOption === "inne" ? inneDetails : "",
+      trackedLog(operationId, "Validating form data", {
+        sposobFinansowania: selectedOption,
+      });
+      const validationResult = financingMethodSchema.safeParse({
+        sposobFinansowania: selectedOption,
       });
 
       if (!validationResult.success) {
         // Obsługa błędów walidacji
         const formattedErrors = validationResult.error.format();
-        let errorMessage: string;
-
-        if (formattedErrors.podstawaUstalen?._errors?.length) {
-          errorMessage = formattedErrors.podstawaUstalen._errors[0];
-        } else if (formattedErrors.podstawaUstalenInne?._errors?.length) {
-          errorMessage = formattedErrors.podstawaUstalenInne._errors[0];
-        } else {
-          errorMessage = "Proszę wypełnić wymagane pola";
-        }
-
+        const errorMessage =
+          formattedErrors._errors?.[0] || "Proszę wybrać jedną z opcji";
         trackedLog(operationId, "Validation failed", errorMessage, "warn");
         setError(errorMessage);
         setIsSubmitting(false);
@@ -144,19 +170,20 @@ export default function PodstawaUstalen() {
         await retryOperation(
           async () => {
             await updateFormData({
-              podstawaUstalen: selectedOption,
-              podstawaUstalenInne: selectedOption === "inne" ? inneDetails : "",
-              wariantPostepu: wariantPostepu, // Zapisujemy kategorię do późniejszego użycia
+              sposobFinansowania: selectedOption as
+                | "i-pay"
+                | "i-receive"
+                | "shared",
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.2.0",
+                formVersion: "1.1.0",
               },
             });
             return true;
           },
           {
             operationId,
-            operationName: "save_settlement_base",
+            operationName: "save_financing_method",
             maxAttempts: 3,
             delayMs: 100,
             exponentialBackoff: true,
@@ -185,9 +212,10 @@ export default function PodstawaUstalen() {
         try {
           trackedLog(operationId, "Attempting simplified backup save");
           await updateFormData({
-            podstawaUstalen: selectedOption,
-            podstawaUstalenInne: selectedOption === "inne" ? inneDetails : "",
-            wariantPostepu: wariantPostepu,
+            sposobFinansowania: selectedOption as
+              | "i-pay"
+              | "i-receive"
+              | "shared",
           });
           trackedLog(operationId, "Backup save succeeded");
           recordSubmission();
@@ -204,10 +232,10 @@ export default function PodstawaUstalen() {
       }
 
       // Przekierowanie z bezpieczną nawigacją
-      trackedLog(operationId, "Preparing navigation to /dzieci");
+      trackedLog(operationId, "Preparing navigation to /podstawa-ustalen");
 
       await safeNavigate(
-        () => router.push("/dzieci"),
+        () => router.push("/podstawa-ustalen"),
         () => scrollToTop(),
         150
       );
@@ -223,26 +251,19 @@ export default function PodstawaUstalen() {
       setIsSubmitting(false);
       trackedLog(operationId, "Form submission process completed");
     }
-  }, [
-    selectedOption,
-    inneDetails,
-    isSubmitting,
-    updateFormData,
-    router,
-    scrollToTop,
-  ]);
+  }, [selectedOption, isSubmitting, updateFormData, router, scrollToTop]);
   // Funkcja do obsługi powrotu do poprzedniego kroku
   const handleBack = useCallback(() => {
     const operationId = generateOperationId();
-    trackedLog(operationId, "Navigating back to /finansowanie");
+    trackedLog(operationId, "Navigating back to /sciezka");
 
     // Używamy bezpiecznej nawigacji
     safeNavigate(
-      () => router.push("/finansowanie"),
+      () => router.push("/sciezka"),
       () => scrollToTop(),
       100
     );
-  }, [router, scrollToTop]);
+  }, [scrollToTop, router]);
 
   return (
     <main className="flex justify-center p-3">
@@ -251,84 +272,42 @@ export default function PodstawaUstalen() {
           <div className="text-center pb-4">
             <Logo className="inline-block" size="large" />
           </div>
-          <FormProgress currentStep={3} totalSteps={12} />
+          <FormProgress currentStep={2} totalSteps={12} />
 
-          <div className="space-y-6 text-sky-950">
-            <div className="flex items-start gap-2">
-              <h1 className="text-2xl font-bold">
-                Na jakiej podstawie zostały ustalone zasady finansowania potrzeb
-                dziecka lub dzieci?
-              </h1>
-              <InfoTooltip
-                content={
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      Dlaczego o to pytamy? Typ ustaleń wpływa na trwałość i
-                      pewność sytuacji prawnej.
-                    </p>
-                  </div>
-                }
-              />
-            </div>{" "}
-            <p>Wybierz opcję, która najlepiej oddaje Twoją sytuację.</p>
+          <div className="space-y-6">
+            <FinancingQuestion />
+
             <RadioGroup
               value={selectedOption}
-              onValueChange={(value) => {
-                setSelectedOption(value);
-                if (value !== "inne") {
-                  setInneDetails("");
-                }
-              }}
+              onValueChange={handleOptionChange}
               className="space-y-3"
             >
               <ClickableRadioOption
-                value="zabezpieczenie"
-                id="zabezpieczenie"
-                label="Postanowienie zabezpieczające"
-                description="(tymczasowe ustalenie przez sąd – np. na czas trwania sprawy rozwodowej lub rodzinnej)"
-                selected={selectedOption === "zabezpieczenie"}
+                value="i-pay"
+                id="i-pay"
+                label="Ja regularnie przekazuję środki na utrzymanie dziecka/dzieci drugiemu rodzicowi"
+                description="(np. alimenty lub inne uzgodnienia – niezależnie od tego, czy ponoszę jeszcze inne koszty podczas opieki.)"
+                selected={selectedOption === "i-pay"}
               />
               <ClickableRadioOption
-                value="wyrok"
-                id="wyrok"
-                label="Wyrok rozwodowy lub wyrok w innej sprawie rodzinnej"
-                description="(ostateczne rozstrzygnięcie sądu o alimentach)"
-                selected={selectedOption === "wyrok"}
+                value="i-receive"
+                id="i-receive"
+                label="Drugi rodzic regularnie przekazuje środki na utrzymanie dziecka/dzieci mi"
+                description="(nawet jeśli także sam pokrywa niektóre koszty podczas swojej opieki.)"
+                selected={selectedOption === "i-receive"}
               />
               <ClickableRadioOption
-                value="ugoda-sad"
-                id="ugoda-sad"
-                label="Porozumienie rodzicielskie zatwierdzone przez sąd"
-                description="(rodzice sami ustalili zasady, a sąd je zatwierdził i nadał im moc prawną)"
-                selected={selectedOption === "ugoda-sad"}
-              />
-              <ClickableRadioOption
-                value="mediacja"
-                id="mediacja"
-                label="Porozumienie mediacyjne"
-                description="(ustalenia zawarte podczas mediacji – z lub bez późniejszego zatwierdzenia przez sąd)"
-                selected={selectedOption === "mediacja"}
-              />
-              <ClickableRadioOption
-                value="prywatne"
-                id="prywatne"
-                label="Prywatne porozumienie bez zatwierdzenia przez sąd"
-                description="(uzgodnienia między rodzicami, bez formalnej akceptacji sądowej)"
-                selected={selectedOption === "prywatne"}
-              />
-              <ClickableRadioOption
-                value="inne"
-                id="inne"
-                label="Inne"
-                hasInput={selectedOption === "inne"}
-                inputValue={inneDetails}
-                onInputChange={setInneDetails}
-                inputPlaceholder="Prosimy o krótki opis"
-                selected={selectedOption === "inne"}
+                value="shared"
+                id="shared"
+                label="Koszty utrzymania dzieci dzielimy w miarę proporcjonalnie, bez systematycznego i formalnego przekazywania pieniędzy między sobą"
+                description="(Każdy rodzic pokrywa swoje wydatki bezpośrednio lub finansujemy wspólnie w określony sposób.)"
+                selected={selectedOption === "shared"}
               />
             </RadioGroup>
+
             {/* Wyświetlanie błędu walidacji */}
             {error && <p className="text-red-500 text-sm">{error}</p>}
+
             <div className="flex gap-3 pt-4">
               <Button
                 variant="outline"

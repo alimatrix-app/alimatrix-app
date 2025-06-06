@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -11,7 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useFormStore } from "@/lib/store/form-store";
 import { Loader2 } from "lucide-react";
-import { safeToSubmit, recordSubmission } from "@/lib/client-security";
+import {
+  generateCSRFToken,
+  storeCSRFToken,
+  safeToSubmit,
+  recordSubmission,
+} from "@/lib/client-security";
 import {
   generateOperationId,
   trackedLog,
@@ -39,6 +44,23 @@ type DochodyRodzicow = {
 export default function DochodyIKoszty() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF token initialization - enhanced security
+  const csrfInitialized = useRef(false);
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+    }
+  }, [updateFormData]);
 
   // Inicjalizacja stanu dla danych o dochodach i kosztach
   const [dochodyRodzicow, setDochodyRodzicow] = useState<DochodyRodzicow>({
@@ -268,7 +290,7 @@ export default function DochodyIKoszty() {
             dochodyRodzicow: dochodyDoZapisu,
             __meta: {
               lastUpdated: Date.now(),
-              formVersion: "1.1.0",
+              formVersion: "1.2.0",
             },
           });
           return true;
@@ -298,12 +320,7 @@ export default function DochodyIKoszty() {
         }, 500);
       }, 100);
     } catch (error) {
-      trackedLog(
-        operationId,
-        "Error saving dochody i koszty data",
-        error,
-        "error"
-      );
+      trackedLog(operationId, "Error saving dochody i koszty data", "error");
       setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
       setIsSubmitting(false);
     }
@@ -386,7 +403,7 @@ export default function DochodyIKoszty() {
         dochodyRodzicow: dochodyDoZapisu,
         __meta: {
           lastUpdated: Date.now(),
-          formVersion: "1.1.0",
+          formVersion: "1.2.0",
         },
       });
 
@@ -400,7 +417,7 @@ export default function DochodyIKoszty() {
         setIsSubmitting(false);
       }, 100);
     } catch (error) {
-      trackedLog(operationId, "Error during back navigation", error, "error");
+      trackedLog(operationId, "Error during back navigation", "error");
       setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
       setIsSubmitting(false);
     }

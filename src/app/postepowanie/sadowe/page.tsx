@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -35,7 +35,12 @@ import {
   WatekWiny,
 } from "./typings";
 import { postepowanieSadoweSchema } from "@/lib/schemas/postepowanie-sadowe-schema";
-import { safeToSubmit, recordSubmission } from "@/lib/client-security";
+import {
+  generateCSRFToken,
+  storeCSRFToken,
+  safeToSubmit,
+  recordSubmission,
+} from "@/lib/client-security";
 import {
   generateOperationId,
   trackedLog,
@@ -45,6 +50,35 @@ import {
 export default function PostepowanieSadowe() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF token initialization - enhanced security protection
+  const csrfInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const operationId = generateOperationId();
+      trackedLog(
+        operationId,
+        "Initializing CSRF protection for court proceedings"
+      );
+
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+
+      trackedLog(
+        operationId,
+        "CSRF protection initialized for court proceedings"
+      );
+    }
+  }, [updateFormData]);
 
   // Stan dla błędów walidacji
   const [error, setError] = useState<string | null>(null);
@@ -261,16 +295,15 @@ export default function PostepowanieSadowe() {
         inicjalySedziego: inicjalySedziego,
         czyPozew: czyPozew,
         watekWiny: watekWiny,
-      };
-
-      // Zapisywanie danych z mechanizmem ponownych prób
+      }; // Zapisywanie danych z mechanizmem ponownych prób
       await retryOperation(
         async () => {
           await updateFormData({
             ...postepowanieSadoweData,
             __meta: {
               lastUpdated: Date.now(),
-              formVersion: "1.1.0",
+              formVersion: "1.2.0",
+              csrfToken: formData.__meta?.csrfToken,
             },
           });
           return true;
@@ -375,12 +408,12 @@ export default function PostepowanieSadowe() {
         czyPozew: czyPozew,
         watekWiny: watekWiny,
       };
-
       await updateFormData({
         ...postepowanieSadoweData,
         __meta: {
           lastUpdated: Date.now(),
-          formVersion: "1.1.0",
+          formVersion: "1.2.0",
+          csrfToken: formData.__meta?.csrfToken,
         },
       });
 

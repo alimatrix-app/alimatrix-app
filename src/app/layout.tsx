@@ -85,34 +85,7 @@ export default function RootLayout({
                   loading="lazy"
                 />
               </div>
-              <nav aria-label="Linki w stopce" className="mb-4">
-                <ul className="flex flex-wrap justify-center gap-4 text-sm">
-                  <li>
-                    <a
-                      href="/polityka-prywatnosci"
-                      className="text-sky-950 hover:text-sky-900 hover:underline"
-                    >
-                      Polityka Prywatności
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/regulamin"
-                      className="text-sky-950 hover:text-sky-900 hover:underline"
-                    >
-                      Regulamin
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/kontakt"
-                      className="text-sky-950 hover:text-sky-900 hover:underline"
-                    >
-                      Kontakt
-                    </a>
-                  </li>
-                </ul>
-              </nav>{" "}
+
               <p className="text-gray-600">
                 © 2025 AliMatrix. Wszystkie prawa zastrzeżone.
               </p>

@@ -27,23 +27,25 @@ import {
 export default function PodstawaUstalen() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+  const secureStore = useFormStore();
 
   // CSRF token initialization
   const csrfInitialized = useRef(false);
+
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      updateFormData({
+      secureStore.updateFormData({
         __meta: {
           csrfToken: token,
           lastUpdated: Date.now(),
-          formVersion: "1.2.0",
+          formVersion: "1.1.0",
         },
       });
       csrfInitialized.current = true;
     }
-  }, [updateFormData]);
+  }, []);
 
   // Funkcja scrollToTop dla lepszego UX przy przejściach
   const scrollToTop = useCallback(() => {
@@ -105,12 +107,16 @@ export default function PodstawaUstalen() {
       let wariantPostepu: "court" | "agreement" | "other" = "other"; // Domyślnie "inne"
 
       if (["zabezpieczenie", "wyrok", "ugoda-sad"].includes(selectedOption)) {
-        wariantPostepu = "court"; // Wariant dla postępowania sądowego      } else if (["mediacja", "prywatne"].includes(selectedOption)) {
+        wariantPostepu = "court"; // Wariant dla postępowania sądowego
+      } else if (["mediacja", "prywatne"].includes(selectedOption)) {
         wariantPostepu = "agreement"; // Wariant dla porozumienia
       }
 
       // Walidacja danych przy użyciu schematu Zod
-      trackedLog(operationId, "Validating form data");
+      trackedLog(operationId, "Validating form data", {
+        podstawaUstalen: selectedOption,
+        podstawaUstalenInne: selectedOption === "inne" ? inneDetails : "",
+      });
 
       const validationResult = settlementBaseSchema.safeParse({
         podstawaUstalen: selectedOption,
@@ -149,7 +155,7 @@ export default function PodstawaUstalen() {
               wariantPostepu: wariantPostepu, // Zapisujemy kategorię do późniejszego użycia
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.2.0",
+                formVersion: "1.1.0",
               },
             });
             return true;
@@ -269,8 +275,8 @@ export default function PodstawaUstalen() {
                   </div>
                 }
               />
-            </div>{" "}
-            <p>Wybierz opcję, która najlepiej oddaje Twoją sytuację.</p>
+            </div>
+            <p>Wybierz opcję, która najlepiej oddaje Twoją sytuację.</p>{" "}
             <RadioGroup
               value={selectedOption}
               onValueChange={(value) => {
@@ -325,10 +331,10 @@ export default function PodstawaUstalen() {
                 onInputChange={setInneDetails}
                 inputPlaceholder="Prosimy o krótki opis"
                 selected={selectedOption === "inne"}
-              />
+              />{" "}
             </RadioGroup>
             {/* Wyświetlanie błędu walidacji */}
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-red-500 text-sm">{error}</p>}{" "}
             <div className="flex gap-3 pt-4">
               <Button
                 variant="outline"

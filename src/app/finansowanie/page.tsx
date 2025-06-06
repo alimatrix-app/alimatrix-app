@@ -73,23 +73,23 @@ FinancingQuestion.displayName = "FinancingQuestion";
 export default function Finansowanie() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
-  const secureStore = useFormStore(); // CSRF token initialization
-  const csrfInitialized = useRef(false);
 
+  // CSRF token initialization - improved strict mode compatibility
+  const csrfInitialized = useRef(false);
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      secureStore.updateFormData({
+      updateFormData({
         __meta: {
           csrfToken: token,
           lastUpdated: Date.now(),
-          formVersion: "1.1.0",
+          formVersion: "1.2.0",
         },
       });
       csrfInitialized.current = true;
     }
-  }, []); // Pusta tablica zależności - efekt wykonuje się tylko raz
+  }, [updateFormData]); // Pusta tablica zależności - efekt wykonuje się tylko raz
 
   // Funkcja scrollToTop zaimplementowana bezpośrednio w komponencie
   const scrollToTop = useCallback(() => {
@@ -120,8 +120,7 @@ export default function Finansowanie() {
       router.push("/sciezka");
     }
   }, [formData.sciezkaWybor, router]);
-
-  // Handler zmiany opcji (memoizowany dla wydajności)
+  // Handler zmiany opcji (optimized for performance)
   const handleOptionChange = useCallback((value: string) => {
     setSelectedOption(value);
   }, []);
@@ -144,9 +143,7 @@ export default function Finansowanie() {
 
     try {
       // Walidacja danych przy użyciu schematu Zod
-      trackedLog(operationId, "Validating form data", {
-        sposobFinansowania: selectedOption,
-      });
+      trackedLog(operationId, "Validating form data");
       const validationResult = financingMethodSchema.safeParse({
         sposobFinansowania: selectedOption,
       });
@@ -176,7 +173,7 @@ export default function Finansowanie() {
                 | "shared",
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.1.0",
+                formVersion: "1.2.0",
               },
             });
             return true;

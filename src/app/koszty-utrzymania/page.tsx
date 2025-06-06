@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -12,7 +12,12 @@ import { Input } from "@/components/ui/input";
 import { useFormStore } from "@/lib/store/form-store";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
-import { safeToSubmit, recordSubmission } from "@/lib/client-security";
+import {
+  safeToSubmit,
+  recordSubmission,
+  generateCSRFToken,
+  storeCSRFToken,
+} from "@/lib/client-security";
 import {
   generateOperationId,
   trackedLog,
@@ -24,6 +29,23 @@ import { kosztyDzieckaSchema } from "@/lib/schemas/koszty-utrzymania-schema";
 export default function KosztyUtrzymania() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF Security Enhancement
+  const csrfInitialized = useRef(false);
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+    }
+  }, [updateFormData]);
 
   // Funkcja scrollToTop zaimplementowana bezpośrednio w komponencie
   const scrollToTop = useCallback(() => {
@@ -268,9 +290,7 @@ export default function KosztyUtrzymania() {
               : undefined,
           brakDodatkowychZrodel: k.inneZrodlaUtrzymania.brakDodatkowychZrodel,
         },
-      }));
-
-      // Zapisz dane z mechanizmem ponownych prób
+      })); // Zapisz dane z mechanizmem ponownych prób
       let dataSaved = false;
       await retryOperation(
         async () => {
@@ -278,7 +298,7 @@ export default function KosztyUtrzymania() {
             kosztyDzieci: kosztyDoZapisu,
             __meta: {
               lastUpdated: Date.now(),
-              formVersion: "1.1.0",
+              formVersion: "1.2.0",
             },
           });
           dataSaved = true;
@@ -368,12 +388,7 @@ export default function KosztyUtrzymania() {
         setIsSubmitting(false);
       }
     } catch (error) {
-      trackedLog(
-        operationId,
-        "Error saving koszty utrzymania data",
-        error,
-        "error"
-      );
+      trackedLog(operationId, "Error saving koszty utrzymania data");
       setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
       setIsSubmitting(false);
     }
@@ -448,12 +463,11 @@ export default function KosztyUtrzymania() {
           brakDodatkowychZrodel: k.inneZrodlaUtrzymania.brakDodatkowychZrodel,
         },
       }));
-
       await updateFormData({
         kosztyDzieci: kosztyDoZapisu,
         __meta: {
           lastUpdated: Date.now(),
-          formVersion: "1.1.0",
+          formVersion: "1.2.0",
         },
       });
 
@@ -516,7 +530,7 @@ export default function KosztyUtrzymania() {
         }, 100);
       }
     } catch (error) {
-      trackedLog(operationId, "Error during back navigation", error, "error");
+      trackedLog(operationId, "Error during back navigation");
       setError("Wystąpił błąd podczas zapisywania danych. Spróbuj ponownie.");
       setIsSubmitting(false);
     }

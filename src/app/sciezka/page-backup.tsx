@@ -79,22 +79,24 @@ PathOption.displayName = "PathOption";
 
 export default function WyborSciezki() {
   const router = useRouter();
-  const { formData, updateFormData } = useFormStore(); // CSRF token initialization - improved strict mode compatibility
+  const { formData, updateFormData } = useFormStore();
+  const secureStore = useFormStore();
+  // CSRF token initialization
   const csrfInitialized = useRef(false);
   useEffect(() => {
     if (!csrfInitialized.current) {
       const token = generateCSRFToken();
       storeCSRFToken(token);
-      updateFormData({
+      secureStore.updateFormData({
         __meta: {
           csrfToken: token,
           lastUpdated: Date.now(),
-          formVersion: "1.2.0",
+          formVersion: "1.1.0",
         },
       });
       csrfInitialized.current = true;
     }
-  }, [updateFormData]);
+  }, []);
 
   // Inicjalizacja stanu wybranej opcji z danych formularza (jeśli istnieją)
   const [selectedOption, setSelectedOption] = useState<string | null>(
@@ -113,7 +115,8 @@ export default function WyborSciezki() {
       setError(null);
     }
   }, [selectedOption]);
-  // Handler wyboru opcji (optimized for performance)
+
+  // Handler wyboru opcji (memoizowany dla wydajności)
   const handleOptionSelect = useCallback((optionId: string) => {
     setSelectedOption(optionId);
     setError(null);
@@ -136,7 +139,9 @@ export default function WyborSciezki() {
 
     try {
       // Walidacja danych przy użyciu schematu Zod
-      trackedLog(operationId, "Validating form data");
+      trackedLog(operationId, "Validating form data", {
+        sciezkaWybor: selectedOption,
+      });
       const validationResult = pathSelectionSchema.safeParse({
         sciezkaWybor: selectedOption,
       });
@@ -163,7 +168,7 @@ export default function WyborSciezki() {
               sciezkaWybor: selectedOption as "established" | "not-established",
               __meta: {
                 lastUpdated: Date.now(),
-                formVersion: "1.2.0",
+                formVersion: "1.1.0",
               },
             });
             return true;
@@ -208,8 +213,14 @@ export default function WyborSciezki() {
           );
           throw finalError;
         }
-      } // Przekierowanie z bezpieczną nawigacją
-      trackedLog(operationId, "Preparing navigation based on selection");
+      }
+
+      // Przekierowanie z bezpieczną nawigacją
+      trackedLog(
+        operationId,
+        "Preparing navigation based on selection",
+        selectedOption
+      );
 
       if (selectedOption === "established") {
         await safeNavigate(() => router.push("/finansowanie"), undefined, 150);

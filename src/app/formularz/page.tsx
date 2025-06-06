@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import { Logo } from "@/components/ui/custom/Logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: "Rozpocznij formularz",
+  description:
+    "Wypełnij formularz AliMatrix i otrzymaj spersonalizowany raport alimentacyjny oparty na rzeczywistych orzeczeniach sądowych w Polsce. Pierwsze 1000 osób - bezpłatnie.",
+  openGraph: {
+    title: "Formularz AliMatrix - Otrzymaj raport alimentacyjny",
+    description:
+      "Sprawdź swoją sytuację alimentacyjną na tle podobnych przypadków w Polsce. Bezpłatny raport dla pierwszych 1000 użytkowników.",
+  },
+};
+
+export default function FormularzIntroPage() {
   return (
     <main className="flex justify-center p-3">
       <Card className="w-full max-w-lg shadow-lg border-sky-100">

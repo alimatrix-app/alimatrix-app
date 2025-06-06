@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/custom/Logo";
 import { FormProgress } from "@/components/ui/custom/FormProgress";
@@ -16,10 +16,51 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import {
+  generateCSRFToken,
+  storeCSRFToken,
+  safeToSubmit,
+  recordSubmission,
+} from "@/lib/client-security";
+import {
+  generateOperationId,
+  trackedLog,
+  retryOperation,
+} from "@/lib/form-handlers";
 
 export default function InformacjeOTobie() {
   const router = useRouter();
   const { formData, updateFormData } = useFormStore();
+
+  // CSRF token initialization - enhanced security protection for user information page
+  const csrfInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!csrfInitialized.current) {
+      const operationId = generateOperationId();
+      trackedLog(
+        operationId,
+        "Initializing CSRF protection for user information page"
+      );
+
+      const token = generateCSRFToken();
+      storeCSRFToken(token);
+      updateFormData({
+        __meta: {
+          csrfToken: token,
+          lastUpdated: Date.now(),
+          formVersion: "1.2.0",
+        },
+      });
+      csrfInitialized.current = true;
+
+      trackedLog(
+        operationId,
+        "CSRF protection initialized for user information page"
+      );
+    }
+  }, [updateFormData]);
 
   // Stany dla pól formularza - użytkownik
   const [plecUzytkownika, setPlecUzytkownika] = useState<string>(
@@ -49,38 +90,129 @@ export default function InformacjeOTobie() {
     useState<string>(formData.wojewodztwoDrugiegoRodzica || "");
   const [miejscowoscDrugiegoRodzica, setMiejscowoscDrugiegoRodzica] =
     useState<string>(formData.miejscowoscDrugiegoRodzica || "");
+  // Enhanced state management for security and error handling
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Funkcja obsługująca przejście do następnego kroku
-  const handleNext = () => {
-    // Zapisujemy dane do store'a
-    updateFormData({
-      plecUzytkownika,
-      wiekUzytkownika,
-      wojewodztwoUzytkownika,
-      miejscowoscUzytkownika,
-      stanCywilnyUzytkownika,
-      plecDrugiegoRodzica,
-      wiekDrugiegoRodzica,
-      wojewodztwoDrugiegoRodzica,
-      miejscowoscDrugiegoRodzica,
-    });
-
-    // Przekierowanie do następnego kroku
-    router.push("/wysylka");
-  };
-
-  // Funkcja obsługująca powrót do poprzedniego kroku
-  const handleBack = () => {
-    // W zależności od wariantPostepu wybieramy odpowiednią ścieżkę powrotu
-    const wariantPostepu = formData.wariantPostepu;
-    if (wariantPostepu === "court") {
-      router.push("/postepowanie/sadowe");
-    } else if (wariantPostepu === "agreement") {
-      router.push("/postepowanie/porozumienie");
-    } else {
-      router.push("/postepowanie/inne");
+  // Scroll to top function
+  const scrollToTop = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  };
+  }, []);
+  // Enhanced function for handling next step with security and retry mechanism
+  const handleNext = useCallback(async () => {
+    if (isSubmitting) return;
+
+    const operationId = generateOperationId();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      trackedLog(operationId, "User information form submission initiated", {
+        timestamp: new Date().toISOString(),
+        hasUserInfo: !!plecUzytkownika,
+        hasSecondParentInfo: !!plecDrugiegoRodzica,
+      });
+
+      if (!safeToSubmit()) {
+        throw new Error("Form submission blocked for security reasons");
+      }
+
+      // Secure form data update with retry mechanism
+      await retryOperation(
+        async () => {
+          await updateFormData({
+            plecUzytkownika,
+            wiekUzytkownika,
+            wojewodztwoUzytkownika,
+            miejscowoscUzytkownika,
+            stanCywilnyUzytkownika,
+            plecDrugiegoRodzica,
+            wiekDrugiegoRodzica,
+            wojewodztwoDrugiegoRodzica,
+            miejscowoscDrugiegoRodzica,
+            __meta: {
+              lastUpdated: Date.now(),
+              formVersion: "1.2.0",
+              csrfToken: formData.__meta?.csrfToken,
+            },
+          });
+          return true;
+        },
+        {
+          maxAttempts: 3,
+          delayMs: 300,
+          operationName: "Update form data - user information",
+          operationId,
+        }
+      );
+
+      recordSubmission();
+
+      trackedLog(
+        operationId,
+        "User information form submitted successfully - redirecting to shipping"
+      );
+
+      // Secure navigation to next step
+      router.push("/wysylka");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      setError(errorMessage);
+      trackedLog(
+        operationId,
+        `User information form submission failed: ${errorMessage}`,
+        { error: errorMessage }
+      );
+      scrollToTop();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    isSubmitting,
+    plecUzytkownika,
+    wiekUzytkownika,
+    wojewodztwoUzytkownika,
+    miejscowoscUzytkownika,
+    stanCywilnyUzytkownika,
+    plecDrugiegoRodzica,
+    wiekDrugiegoRodzica,
+    wojewodztwoDrugiegoRodzica,
+    miejscowoscDrugiegoRodzica,
+    formData.__meta?.csrfToken,
+    updateFormData,
+    router,
+    scrollToTop,
+  ]);
+
+  // Enhanced function for handling back navigation with security logging
+  const handleBack = useCallback(() => {
+    const operationId = generateOperationId();
+    trackedLog(
+      operationId,
+      "User information form - back navigation initiated"
+    );
+
+    // Determine back navigation route based on proceeding variant
+    const wariantPostepu = formData.wariantPostepu;
+    let targetRoute = "/postepowanie/inne"; // default fallback
+
+    if (wariantPostepu === "court") {
+      targetRoute = "/postepowanie/sadowe";
+    } else if (wariantPostepu === "agreement") {
+      targetRoute = "/postepowanie/porozumienie";
+    }
+
+    trackedLog(
+      operationId,
+      `User information form - navigating back to: ${targetRoute}`,
+      { wariantPostepu }
+    );
+
+    router.push(targetRoute);
+  }, [formData.wariantPostepu, router]);
 
   return (
     <main className="flex justify-center p-3">
@@ -412,12 +544,37 @@ export default function InformacjeOTobie() {
               </div>
             </div>
 
+            {/* Enhanced error display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
+                <p className="text-red-700 text-sm">
+                  <strong>Błąd:</strong> {error}
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
-              <Button variant="outline" className="flex-1" onClick={handleBack}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleBack}
+                disabled={isSubmitting}
+              >
                 Wstecz
               </Button>
-              <Button className="flex-1" onClick={handleNext}>
-                Dalej
+              <Button
+                className="flex-1"
+                onClick={handleNext}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Zapisywanie...
+                  </>
+                ) : (
+                  "Dalej"
+                )}
               </Button>
             </div>
           </div>

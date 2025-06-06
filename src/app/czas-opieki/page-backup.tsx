@@ -8,6 +8,7 @@ import { InfoTooltip } from "@/components/ui/custom/InfoTooltip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useFormStore } from "@/lib/store/form-store";
 import {
   Dziecko,
@@ -16,7 +17,11 @@ import {
   TabeleCzasuOpieki,
   WskaznikiCzasuOpieki,
 } from "./typings";
-import { generateOperationId, trackedLog } from "@/lib/form-handlers";
+import {
+  generateOperationId,
+  trackedLog,
+  retryOperation,
+} from "@/lib/form-handlers";
 
 // Rozszerzony typ Dziecko z tabeleCzasuOpieki
 type DzieckoRozszerzone = Dziecko & {
